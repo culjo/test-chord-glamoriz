@@ -3,9 +3,11 @@
 import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { summarise } from './orders.js';
+import { replyFormat } from './formatting.js';
 
 const phone = z.string().describe("Customer's WhatsApp number in any format, e.g. 0803 000 0001 or +2348030000001");
 const orderId = z.string().describe('Glamoriz order number, e.g. GLZ-1001');
+const channel = z.string().optional().describe('The channel this chat is on, if you know it: whatsapp, web, instagram or email');
 
 function ok(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data) }] };
@@ -22,7 +24,7 @@ function wrap(name, fn) {
   };
 }
 
-export function buildMcpServer({ store, orders, pricing, alertOwner }) {
+export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
   const server = new McpServer({ name: 'glamoriz-tools', version: '0.1.0' });
 
   const tool = (name, description, inputSchema, fn) =>
@@ -30,15 +32,18 @@ export function buildMcpServer({ store, orders, pricing, alertOwner }) {
 
   tool(
     'get_customer',
-    'Look up a customer by WhatsApp number. Returns their name, last order, referral code, store credit and whether they opted out. Unknown numbers return found:false (a new customer).',
-    { phone },
-    async ({ phone: p }) => {
+    'Look up a customer by WhatsApp number. Returns their name, last order, referral code, store credit and whether they opted out. ' +
+      'Unknown numbers return found:false (a new customer). Also returns reply_format: format every message you send by its rules.',
+    { phone, channel },
+    async ({ phone: p, channel: ch }) => {
       const c = store.customer(p);
       const history = store.ordersFor(p).filter((o) => o.status === 'paid');
-      if (!c && !history.length) return { found: false };
+      const reply_format = replyFormat(config, ch);
+      if (!c && !history.length) return { found: false, reply_format };
       const last = history[0];
       return {
         found: true,
+        reply_format,
         name: c?.name || last?.customer_name || null,
         city: c?.city || null,
         area: c?.area || null,
@@ -165,9 +170,10 @@ export function buildMcpServer({ store, orders, pricing, alertOwner }) {
 
   tool(
     'get_order',
-    'Get an order and whether a follow-up message is allowed. Call this first in every scheduled follow-up.',
-    { order_id: orderId },
-    async (args) => orders.getOrder(args),
+    'Get an order and whether a follow-up message is allowed. Call this first in every scheduled follow-up. ' +
+      'Also returns reply_format: format the follow-up message by its rules.',
+    { order_id: orderId, channel },
+    async ({ order_id, channel: ch }) => ({ ...orders.getOrder({ order_id }), reply_format: replyFormat(config, ch) }),
   );
 
   tool(

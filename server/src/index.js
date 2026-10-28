@@ -48,6 +48,7 @@ export function createApp(config = loadConfig()) {
       paystack_mode: paystack.mode,
       chord_followups: chord.configured ? `enabled (${config.chord.followupPlatform})` : 'disabled: agent uses schedule_reminder',
       demo_followup_minutes: config.followups.demoMinutes || null,
+      reply_format: { default: config.replyFormat.default, by_channel: config.replyFormat.byChannel },
       owner_alerts: config.ownerAlertWebhookUrl ? 'webhook' : 'log only',
     });
   });
@@ -109,7 +110,7 @@ export function createApp(config = loadConfig()) {
 
   // Stateless mode: a fresh server and transport per request, so it scales horizontally and survives restarts.
   app.post('/mcp', async (req, res) => {
-    const server = buildMcpServer({ store, orders, pricing, alertOwner });
+    const server = buildMcpServer({ store, orders, pricing, config, alertOwner });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => {
       transport.close();

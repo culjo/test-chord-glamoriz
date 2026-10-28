@@ -57,7 +57,9 @@ test('recognises a returning customer from any phone format', async () => {
   assert.equal(ada.found, true);
   assert.equal(ada.name, 'Ada Obi');
   assert.equal(ada.last_order.order_id, 'GLZ-1000');
-  assert.deepEqual(await call('get_customer', { phone: '+234 812 345 6789' }), { found: false });
+  const stranger = await call('get_customer', { phone: '+234 812 345 6789' });
+  assert.equal(stranger.found, false);
+  assert.equal(stranger.reply_format.format, 'plain', 'plain text by default, for the WhatsApp simulator');
 });
 
 test('search and stock: out-of-stock items come with alternatives', async () => {
@@ -160,6 +162,21 @@ test('Paystack webhook: bad signature rejected, valid charge.success marks the o
   assert.equal(good.status, 200);
   await new Promise((r) => setTimeout(r, 100));
   assert.equal((await call('get_order', { order_id: order.order_id })).order.status, 'paid');
+});
+
+test('reply format: plain by default, overridable per channel, bad values refused at startup', async () => {
+  const { replyFormat } = await import('../src/formatting.js');
+  const config = loadConfig({ REPLY_FORMAT: 'whatsapp', REPLY_FORMAT_BY_CHANNEL: 'web=markdown, email=html' });
+  assert.equal(replyFormat(config, 'WhatsApp').format, 'whatsapp');
+  assert.equal(replyFormat(config, 'web').format, 'markdown');
+  assert.equal(replyFormat(config, 'email').format, 'html');
+  assert.equal(replyFormat(config).format, 'whatsapp');
+  assert.throws(() => loadConfig({ REPLY_FORMAT: 'rtf' }), /REPLY_FORMAT must be one of/);
+  assert.throws(() => loadConfig({ REPLY_FORMAT_BY_CHANNEL: 'web' }), /look like/);
+
+  const got = await call('get_order', { order_id: 'GLZ-1000' });
+  assert.equal(got.reply_format.format, 'plain');
+  assert.match(got.reply_format.rules.join(' '), /no Markdown/i);
 });
 
 async function pay(orderId) {

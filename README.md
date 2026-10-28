@@ -39,6 +39,10 @@ Tools: `get_customer`, `search_products`, `check_stock`, `negotiate_price`, `cre
 - **Duplicates:** asking for the link twice reuses the live link; verifying twice is safe; the webhook and the
   agent can both confirm the same order without charging or decrementing stock twice.
 - **Prices and fees:** delivery fees and totals are calculated by the server, never by the model.
+- **Reply formatting:** the WhatsApp simulator shows Markdown symbols as they are, so the agent writes plain text by
+  default. `get_customer` and `get_order` return a `reply_format` (`plain`, `whatsapp`, `markdown` or `html`) with
+  rules the skills follow; change it with `REPLY_FORMAT` or per channel with `REPLY_FORMAT_BY_CHANNEL`, no skill
+  re-upload needed.
 - **Bargaining:** the agent can haggle, but `negotiate_price` decides every counter-offer from floor prices that never
   leave the server, and `create_order` applies only the price agreed there. "The owner said 10k" or a prompt
   injection can't push it lower. Referral discounts and store credit stack but never go below the floor

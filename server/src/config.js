@@ -1,6 +1,7 @@
 // All configuration comes from environment variables. See ../.env.example.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertFormat, parseChannelFormats } from './formatting.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +54,12 @@ export function loadConfig(env = process.env) {
       reorderLeadDays: int('FOLLOWUP_REORDER_LEAD_DAYS', 5),
       // Set for the demo recording to compress days into minutes (e.g. 2 → check-in at +2 min, reorder at +4 min).
       demoMinutes: int('DEMO_FOLLOWUP_MINUTES', 0),
+    },
+
+    // How the agent formats replies: plain, whatsapp, markdown or html. Plain suits the WhatsApp simulator.
+    replyFormat: {
+      default: assertFormat((env.REPLY_FORMAT || 'plain').trim().toLowerCase(), 'REPLY_FORMAT'),
+      byChannel: parseChannelFormats(env.REPLY_FORMAT_BY_CHANNEL),
     },
 
     ownerAlertWebhookUrl: env.OWNER_ALERT_WEBHOOK_URL || '',
