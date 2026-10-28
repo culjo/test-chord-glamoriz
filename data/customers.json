@@ -2,6 +2,7 @@
   {
     "phone": "2348030000001",
     "name": "Ada Obi",
+    "address_as": "Ada",
     "city": "Lagos",
     "area": "Lekki",
     "address": "12 Admiralty Way, Lekki Phase 1, Lagos",
@@ -13,6 +14,7 @@
   {
     "phone": "2348090000002",
     "name": "Zainab Musa",
+    "address_as": "Madam Zainab",
     "city": "Abuja",
     "area": "Wuse",
     "address": "4 Aminu Kano Crescent, Wuse 2, Abuja",

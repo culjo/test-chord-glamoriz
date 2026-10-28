@@ -76,7 +76,7 @@ Content-Type: application/json
 POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/health
 Authorization: Bearer {{apiKey}}
 
-### Discover the tools Chord sees on the server (expect 12)
+### Discover the tools Chord sees on the server (expect 13)
 POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/tools
 Authorization: Bearer {{apiKey}}
 

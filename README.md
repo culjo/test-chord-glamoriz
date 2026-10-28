@@ -28,7 +28,7 @@ Chord connects to custom tools as a **remote MCP server** over Streamable HTTP, 
 | `GET /mock-pay/:ref` | Fake checkout page, only when no Paystack key is set |
 | `GET /health` | Shows the Paystack mode, follow-up mode and alert channel (no secrets) |
 
-Tools: `get_customer`, `search_products`, `check_stock`, `negotiate_price`, `create_order`, `create_payment_link`,
+Tools: `get_customer`, `save_customer_details`, `search_products`, `check_stock`, `negotiate_price`, `create_order`, `create_payment_link`,
 `verify_payment`, `schedule_followups`, `get_order`, `list_orders`, `log_complaint`, `record_feedback`.
 
 ### How failures are handled

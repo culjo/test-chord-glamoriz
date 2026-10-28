@@ -32,6 +32,7 @@ sales made outside 9am–6pm, and the 30-day repeat purchase rate.
 | Tool | Backed by | Failure handling |
 |---|---|---|
 | `get_customer(phone)` | Store (JSON or SQLite) | Unknown number → `{found: false}`, never an error |
+| `save_customer_details(phone, name?, address_as?)` | Store | Saves how the customer likes to be addressed (Ma, Sir, Aunty Ada, a first name); returned by `get_customer` and `get_order` |
 | `search_products(concern, skin_type?, max_price?)` | `data/products.json` | No match → empty list plus a suggestion to ask a different question |
 | `check_stock(sku)` | Store | Out of stock → `{in_stock: false, alternatives: [...]}` |
 | `negotiate_price(phone, sku, qty?, offer_ngn?)` | Store, using floor prices that only the server knows | Accepts a fair offer as-is, otherwise counters in up to 3 steps; first-time buyers stop above the floor; a final offer comes with alternatives |

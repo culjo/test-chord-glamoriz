@@ -48,7 +48,7 @@ test('lists every tool', async () => {
   const { tools } = await client.listTools();
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'negotiate_price', 'record_feedback', 'schedule_followups', 'search_products', 'verify_payment'],
+    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'negotiate_price', 'record_feedback', 'save_customer_details', 'schedule_followups', 'search_products', 'verify_payment'],
   );
 });
 
@@ -177,6 +177,20 @@ test('reply format: plain by default, overridable per channel, bad values refuse
   const got = await call('get_order', { order_id: 'GLZ-1000' });
   assert.equal(got.reply_format.format, 'plain');
   assert.match(got.reply_format.rules.join(' '), /no Markdown/i);
+});
+
+test('addressing: a new customer says how to be addressed, and it sticks', async () => {
+  assert.equal((await call('get_customer', { phone: '08030000001' })).address_as, 'Ada');
+  const phone = '08120000012';
+  const saved = await call('save_customer_details', { phone, name: 'Chioma Okeke', address_as: 'ma' });
+  assert.equal(saved.address_as, 'Ma');
+  const c = await call('get_customer', { phone });
+  assert.equal(c.found, true);
+  assert.equal(c.paid_orders, 0);
+  assert.equal(c.address_as, 'Ma');
+  assert.equal((await call('save_customer_details', { phone, address_as: 'Aunty Chi' })).address_as, 'Aunty Chi');
+  assert.equal((await call('get_customer', { phone })).name, 'Chioma Okeke', 'a correction keeps the name');
+  assert.equal((await call('get_order', { order_id: 'GLZ-1000' })).address_as, 'Ada');
 });
 
 async function pay(orderId) {

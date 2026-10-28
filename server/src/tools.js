@@ -24,6 +24,14 @@ function wrap(name, fn) {
   };
 }
 
+/** Tidies common honorifics ("ma" → "Ma", "madam" → "Madam") and keeps anything else as the customer wrote it. */
+function normaliseAddressAs(value) {
+  const v = value?.trim().replace(/\s+/g, ' ');
+  if (!v) return undefined;
+  const known = { ma: 'Ma', sir: 'Sir', madam: 'Madam', aunty: 'Aunty', auntie: 'Aunty', uncle: 'Uncle', mummy: 'Mummy', daddy: 'Daddy' };
+  return known[v.toLowerCase()] || v.replace(/^./, (ch) => ch.toUpperCase());
+}
+
 export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
   const server = new McpServer({ name: 'glamoriz-tools', version: '0.1.0' });
 
@@ -51,10 +59,28 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
         referral_code: c?.referral_code || null,
         credit_ngn: c?.credit_ngn || 0,
         opt_out: Boolean(c?.opt_out),
+        // How they like to be addressed ("Ma", "Sir", "Aunty Ada", "Ada"). null means not asked yet.
+        address_as: c?.address_as || null,
         notes: c?.skin_notes || null,
         paid_orders: history.length,
         last_order: last ? { order_id: last.id, paid_at: last.paid_at, items: last.items.map((i) => i.name) } : null,
       };
+    },
+  );
+
+  tool(
+    'save_customer_details',
+    'Save what a customer tells you about themselves: their name and how they like to be addressed (e.g. "Ma", "Sir", ' +
+      '"Madam", "Aunty Ada", "Mr Okafor" or just their first name). Call it as soon as they tell you, and again if they correct it.',
+    {
+      phone,
+      name: z.string().max(80).optional().describe("Customer's name as they gave it"),
+      address_as: z.string().max(40).optional().describe('Exactly how they want to be addressed, in their words'),
+    },
+    async ({ phone: p, name, address_as }) => {
+      const c = store.upsertCustomer(p, { name: name?.trim(), address_as: normaliseAddressAs(address_as) });
+      store.save();
+      return { ok: true, name: c.name || null, address_as: c.address_as || null };
     },
   );
 
@@ -173,7 +199,11 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
     'Get an order and whether a follow-up message is allowed. Call this first in every scheduled follow-up. ' +
       'Also returns reply_format: format the follow-up message by its rules.',
     { order_id: orderId, channel },
-    async ({ order_id, channel: ch }) => ({ ...orders.getOrder({ order_id }), reply_format: replyFormat(config, ch) }),
+    async ({ order_id, channel: ch }) => {
+      const result = orders.getOrder({ order_id });
+      const c = result.ok ? store.customer(result.order.phone) : null;
+      return { ...result, ...(result.ok && { address_as: c?.address_as || null }), reply_format: replyFormat(config, ch) };
+    },
   );
 
   tool(

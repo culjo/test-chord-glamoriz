@@ -34,6 +34,8 @@ Fires about 5 days before the product's `days_supply` runs out.
 - On a no or "not now", accept it gracefully, record it with `record_feedback`, and don't follow up again for that order.
 
 ## Rules
+- Address the customer by the `address_as` that `get_order` returns, following the sales skill's "Addressing the
+  customer" rules. If it's null, use their first name and no title.
 - Format the message by the `reply_format` that `get_order` returns (plain text if it's missing), as the sales skill says.
 - At most one message per follow-up. If the customer doesn't reply, don't chase them.
 - If the customer says "stop" or asks not to be messaged, call `record_feedback` with `opt_out: true` and confirm.
