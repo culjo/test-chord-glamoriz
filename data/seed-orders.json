@@ -3,7 +3,14 @@
     "id": "GLZ-1000",
     "phone": "2348030000001",
     "customer_name": "Ada Obi",
-    "items": [{ "sku": "GLM-SER-01", "name": "Even Tone Niacinamide 10% Serum 30ml", "qty": 1, "unit_price_ngn": 14500 }],
+    "items": [
+      {
+        "sku": "GLM-SER-01",
+        "name": "Even Tone Niacinamide 10% Serum 30ml",
+        "qty": 1,
+        "unit_price_ngn": 14500
+      }
+    ],
     "subtotal_ngn": 14500,
     "delivery_fee_ngn": 2500,
     "total_ngn": 17000,
@@ -13,5 +20,77 @@
     "address": "12 Admiralty Way, Lekki Phase 1, Lagos",
     "status": "paid",
     "days_ago": 26
+  },
+  {
+    "id": "GLZ-0997",
+    "phone": "2348050000003",
+    "customer_name": "Tunde Bakare",
+    "items": [
+      {
+        "sku": "GLM-CLN-01",
+        "name": "Gentle Glow Foaming Cleanser 150ml",
+        "qty": 1,
+        "unit_price_ngn": 8500
+      },
+      {
+        "sku": "GLM-MOI-02",
+        "name": "Matte Fresh Gel Moisturiser 50ml",
+        "qty": 1,
+        "unit_price_ngn": 11000
+      }
+    ],
+    "subtotal_ngn": 19500,
+    "delivery_fee_ngn": 3000,
+    "total_ngn": 22500,
+    "city": "Lagos",
+    "area": "Ikeja",
+    "zone": "Lagos Mainland",
+    "address": "22 Allen Avenue, Ikeja, Lagos",
+    "status": "paid",
+    "days_ago": 40
+  },
+  {
+    "id": "GLZ-0998",
+    "phone": "2348160000005",
+    "customer_name": "Funmilayo Adeyemi",
+    "items": [
+      {
+        "sku": "GLM-BOD-01",
+        "name": "Even Tone Body Lotion 400ml",
+        "qty": 2,
+        "unit_price_ngn": 14000
+      }
+    ],
+    "subtotal_ngn": 28000,
+    "delivery_fee_ngn": 4500,
+    "total_ngn": 32500,
+    "city": "Lagos",
+    "area": "Ikorodu",
+    "zone": "Lagos Outer",
+    "address": "8 Ebute Road, Ikorodu, Lagos",
+    "status": "paid",
+    "days_ago": 38
+  },
+  {
+    "id": "GLZ-0999",
+    "phone": "2347060000004",
+    "customer_name": "Chiamaka Eze",
+    "items": [
+      {
+        "sku": "GLM-SET-02",
+        "name": "Hydration Heroes Set (cream cleanser, hyaluronic serum, ceramide moisturiser)",
+        "qty": 1,
+        "unit_price_ngn": 32000
+      }
+    ],
+    "subtotal_ngn": 32000,
+    "delivery_fee_ngn": 3500,
+    "total_ngn": 35500,
+    "city": "Abuja",
+    "area": "Gwarinpa",
+    "zone": "Abuja Outer",
+    "address": "15 3rd Avenue, Gwarinpa, Abuja (opposite the filling station)",
+    "status": "paid",
+    "days_ago": 3
   }
 ]

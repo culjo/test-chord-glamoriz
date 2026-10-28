@@ -65,6 +65,35 @@ test('recognises a returning customer from any phone format', async () => {
   assert.ok(noNumber.reply_format);
 });
 
+test('seed customers: five, with their own history, credit and preferences', async () => {
+  const tunde = await call('get_customer', { phone: '0805 000 0003' });
+  assert.equal(tunde.address_as, 'Sir');
+  assert.equal(tunde.credit_ngn, 2000);
+  assert.equal(tunde.last_order.order_id, 'GLZ-0997');
+  assert.equal((await call('get_customer', { phone: '07060000004' })).address_as, 'Aunty Chi');
+  assert.equal((await call('get_customer', { phone: '08160000005' })).opt_out, true);
+  assert.equal((await call('get_order', { order_id: 'GLZ-0998' })).followup_allowed, false, 'opted-out customer gets no follow-ups');
+  assert.equal((await call('check_stock', { sku: 'GLM-SPF-02' })).in_stock, false);
+});
+
+test('an existing store picks up new products, customers and orders without losing its own data', async () => {
+  const { Store } = await import('../src/store.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'glamoriz-topup-'));
+  const paths = { dataDir: dir, catalogPath: path.resolve('../data/products.json'), seedCustomersPath: path.resolve('../data/customers.json') };
+  fs.writeFileSync(path.join(dir, 'store.json'), JSON.stringify({
+    customers: { '2348030000001': { phone: '2348030000001', name: 'Ada Obi', address_as: 'Aunty Ada' } },
+    orders: {}, complaints: [], feedback: [], next_order_number: 1005, next_ticket_number: 1,
+    stock: { 'GLM-SER-01': 3 },
+  }));
+  const store = new Store(paths);
+  assert.equal(store.product('GLM-SER-01').stock, 3, 'existing stock is kept');
+  assert.equal(store.product('GLM-SER-05').stock, 20, 'new products get their catalogue stock');
+  assert.equal(store.customer('08030000001').address_as, 'Aunty Ada', 'customer changes are kept');
+  assert.ok(store.customer('08050000003'), 'new seed customers are added');
+  assert.ok(store.order('GLZ-0999'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('search and stock: out-of-stock items come with alternatives', async () => {
   const { results } = await call('search_products', { concern: 'dark spots', skin_type: 'oily' });
   assert.ok(results.length > 0 && results[0].in_stock);
@@ -72,7 +101,9 @@ test('search and stock: out-of-stock items come with alternatives', async () => 
   assert.ok(pregnant.results.every((p) => !/pregnan/i.test(p.caution || '')));
   const browse = await call('search_products', {});
   assert.equal(browse.overview, true);
-  assert.deepEqual(browse.results.map((p) => p.category).sort(), ['cleanser', 'moisturiser', 'serum', 'set', 'sunscreen']);
+  const categories = browse.results.map((p) => p.category);
+  assert.equal(new Set(categories).size, categories.length, 'one product per category');
+  for (const c of ['cleanser', 'toner', 'serum', 'moisturiser', 'sunscreen', 'body', 'set']) assert.ok(categories.includes(c), c);
   assert.ok(browse.results.every((p) => p.in_stock));
   const sal = await call('check_stock', { sku: 'GLM-SER-02' });
   assert.equal(sal.in_stock, false);

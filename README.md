@@ -90,7 +90,25 @@ To use Paystack test mode, put your `sk_test_…` key in `.env`, then pay with
    For the recording, set `DEMO_FOLLOWUP_MINUTES=2`.
 
 ## Data and safety
-All products, customers and orders are made up. The store is a JSON file, which is fine for a demo; the go-live note
+All products, customers and orders are made up.
+
+The catalogue ([data/products.json](data/products.json)) has 22 products across 11 categories: cleansers, toners,
+serums, a spot treatment, an eye cream, a mask, moisturisers, sunscreens, a body lotion, a lip balm and two routine
+sets. The salicylic serum and the tinted sunscreen are out of stock on purpose, to test alternatives.
+
+Five test customers ([data/customers.json](data/customers.json)) cover the main cases. Use their numbers as the
+WhatsApp sender, or as `sender_id` in [server/chord.http](server/chord.http):
+
+| Customer | Number | Addressed as | What it tests |
+|---|---|---|---|
+| Ada Obi, Lekki | 2348030000001 | Ada | Returning customer; serum bought 26 days ago, so a reorder is due; referral code `ADA2K` |
+| Zainab Musa, Wuse | 2348090000002 | Madam Zainab | Pregnant: retinol and salicylic must be excluded; no orders yet |
+| Tunde Bakare, Ikeja | 2348050000003 | Sir | ₦2,000 store credit to use; last order 40 days ago |
+| Chiamaka Eze, Gwarinpa | 2347060000004 | Aunty Chi | Paid 3 days ago: the day-3 check-in; sensitive skin |
+| Funmilayo Adeyemi, Ikorodu | 2348160000005 | Ma | Opted out: no follow-ups may be sent |
+
+Any other number is a new customer. Seeding only adds what's missing, so a running store picks up new products and
+customers without losing its stock levels or changes. The store is a JSON file, which is fine for a demo; the go-live note
 lists what replaces it. No card details pass through this server: customers pay on Paystack's page.
 
 ## How I used AI tools

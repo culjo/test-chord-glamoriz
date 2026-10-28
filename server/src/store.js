@@ -17,26 +17,27 @@ export class Store {
     this.file = path.join(dataDir, 'store.json');
     this.catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
     fs.mkdirSync(dataDir, { recursive: true });
-    if (fs.existsSync(this.file)) {
-      this.db = JSON.parse(fs.readFileSync(this.file, 'utf8'));
-    } else {
-      this.db = structuredClone(EMPTY);
-      this.#seed(seedCustomersPath);
-      this.save();
-    }
+    this.db = fs.existsSync(this.file) ? JSON.parse(fs.readFileSync(this.file, 'utf8')) : structuredClone(EMPTY);
+    // Seeding only adds what's missing, so new products, customers and orders reach an existing store
+    // without overwriting stock levels or customer changes.
+    this.#seed(seedCustomersPath);
     // Stock lives in the store once seeded, so sales decrement it.
-    this.db.stock ??= Object.fromEntries(this.catalog.map((p) => [p.sku, p.stock]));
+    this.db.stock ??= {};
+    for (const p of this.catalog) this.db.stock[p.sku] ??= p.stock;
+    this.save();
   }
 
   #seed(seedCustomersPath) {
     if (seedCustomersPath && fs.existsSync(seedCustomersPath)) {
       for (const c of JSON.parse(fs.readFileSync(seedCustomersPath, 'utf8'))) {
-        this.db.customers[normalisePhone(c.phone)] = { ...c, phone: normalisePhone(c.phone) };
+        const key = normalisePhone(c.phone);
+        this.db.customers[key] ??= { ...c, phone: key };
       }
     }
     const seedOrders = path.join(path.dirname(seedCustomersPath || ''), 'seed-orders.json');
     if (fs.existsSync(seedOrders)) {
       for (const o of JSON.parse(fs.readFileSync(seedOrders, 'utf8'))) {
+        if (this.db.orders[o.id]) continue;
         const paidAt = new Date(Date.now() - o.days_ago * 86400000).toISOString();
         const { days_ago, ...order } = o;
         this.db.orders[o.id] = { ...order, created_at: paidAt, paid_at: paidAt, payment: null, followups: [], followups_suppressed: false };

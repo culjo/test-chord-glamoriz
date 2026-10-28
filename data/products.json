@@ -26,6 +26,45 @@
     "caution": null
   },
   {
+    "sku": "GLM-CLN-03",
+    "name": "Melt Away Cleansing Balm 100g",
+    "category": "cleanser",
+    "concerns": ["makeup removal", "sunscreen removal", "dryness"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 10500,
+    "floor_price_ngn": 9200,
+    "days_supply": 60,
+    "stock": 15,
+    "how_to_use": "At night on dry skin, massage for a minute to melt makeup and sunscreen, add water, rinse. Follow with your usual cleanser.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-TON-01",
+    "name": "Calm Water Hydrating Toner 200ml",
+    "category": "toner",
+    "concerns": ["dryness", "sensitivity", "everyday"],
+    "skin_types": ["dry", "sensitive", "normal", "combination"],
+    "price_ngn": 9500,
+    "floor_price_ngn": 8300,
+    "days_supply": 60,
+    "stock": 22,
+    "how_to_use": "After cleansing, pat a few drops into the skin with your hands, morning and night.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-TON-02",
+    "name": "Fade Away 5% Glycolic Toner 150ml",
+    "category": "toner",
+    "concerns": ["dark spots", "dullness", "texture"],
+    "skin_types": ["normal", "combination", "oily"],
+    "price_ngn": 12000,
+    "floor_price_ngn": 10500,
+    "days_supply": 45,
+    "stock": 14,
+    "how_to_use": "At night after cleansing, swipe over the face with a cotton pad, 3 nights a week to start. Don't use on the same night as retinol.",
+    "caution": "Patch-test first. Always use sunscreen during the day. Stop if it stings for more than a minute."
+  },
+  {
     "sku": "GLM-SER-01",
     "name": "Even Tone Niacinamide 10% Serum 30ml",
     "category": "serum",
@@ -78,6 +117,71 @@
     "caution": "Not for pregnancy or breastfeeding. Patch-test first. Expect some dryness in the first 2 weeks."
   },
   {
+    "sku": "GLM-SER-05",
+    "name": "Deep Drink Hyaluronic Acid Serum 30ml",
+    "category": "serum",
+    "concerns": ["dryness", "dehydration", "fine lines"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 13500,
+    "floor_price_ngn": 11800,
+    "days_supply": 30,
+    "stock": 20,
+    "how_to_use": "3–4 drops on damp skin after cleansing, morning and night, then moisturiser.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-SER-06",
+    "name": "Even Glow 10% Azelaic Acid Serum 30ml",
+    "category": "serum",
+    "concerns": ["dark spots", "acne", "redness"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 16500,
+    "floor_price_ngn": 14300,
+    "days_supply": 30,
+    "stock": 9,
+    "how_to_use": "A thin layer after cleansing, once a day to start, then morning and night. Follow with moisturiser.",
+    "caution": "Patch-test first. Mild tingling for the first few days is normal."
+  },
+  {
+    "sku": "GLM-TRT-01",
+    "name": "Overnight Spot Patches (36 patches)",
+    "category": "treatment",
+    "concerns": ["acne", "spots"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 4500,
+    "floor_price_ngn": 4000,
+    "days_supply": 30,
+    "stock": 40,
+    "how_to_use": "On a clean, dry pimple at night. Peel off in the morning.",
+    "caution": "For surface spots only. Don't use on open wounds or broken skin."
+  },
+  {
+    "sku": "GLM-EYE-01",
+    "name": "Bright Eyes Caffeine Eye Cream 15ml",
+    "category": "eye cream",
+    "concerns": ["dark circles", "puffiness"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 11500,
+    "floor_price_ngn": 10000,
+    "days_supply": 60,
+    "stock": 12,
+    "how_to_use": "A rice-sized amount around both eyes, morning and night. Tap in gently with your ring finger.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-MSK-01",
+    "name": "Clay Detox Face Mask 100ml",
+    "category": "mask",
+    "concerns": ["oiliness", "large pores", "acne"],
+    "skin_types": ["oily", "combination"],
+    "price_ngn": 8000,
+    "floor_price_ngn": 7000,
+    "days_supply": 60,
+    "stock": 18,
+    "how_to_use": "Once or twice a week on clean skin. Leave for 10 minutes, then rinse with lukewarm water.",
+    "caution": "Patch-test first. Don't use on the same day as an exfoliating toner."
+  },
+  {
     "sku": "GLM-MOI-01",
     "name": "Barrier Balm Ceramide Moisturiser 50ml",
     "category": "moisturiser",
@@ -117,6 +221,45 @@
     "caution": null
   },
   {
+    "sku": "GLM-SPF-02",
+    "name": "Glow Tint SPF 40 Tinted Sunscreen 50ml (deep shades)",
+    "category": "sunscreen",
+    "concerns": ["dark spots", "everyday", "even tone"],
+    "skin_types": ["normal", "combination", "dry"],
+    "price_ngn": 17500,
+    "floor_price_ngn": 15300,
+    "days_supply": 30,
+    "stock": 0,
+    "how_to_use": "Two finger-lengths every morning as the last step. Blend well. Reapply every 2–3 hours outdoors.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-BOD-01",
+    "name": "Even Tone Body Lotion 400ml",
+    "category": "body",
+    "concerns": ["dark spots", "dryness", "body"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 14000,
+    "floor_price_ngn": 12200,
+    "days_supply": 45,
+    "stock": 16,
+    "how_to_use": "All over the body after a bath, morning and night. Use sunscreen on exposed areas during the day.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-LIP-01",
+    "name": "Cocoa Glow Lip Balm 10g",
+    "category": "lip",
+    "concerns": ["dry lips", "dark lips"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 2500,
+    "floor_price_ngn": 2500,
+    "days_supply": 30,
+    "stock": 50,
+    "how_to_use": "Apply whenever lips feel dry, and before bed.",
+    "caution": null
+  },
+  {
     "sku": "GLM-SET-01",
     "name": "Starter Routine Set (cleanser, niacinamide serum, gel moisturiser, SPF 50)",
     "category": "set",
@@ -128,5 +271,18 @@
     "stock": 6,
     "how_to_use": "Morning: cleanser, serum, moisturiser, SPF. Night: cleanser, serum, moisturiser.",
     "caution": "Patch-test the serum first."
+  },
+  {
+    "sku": "GLM-SET-02",
+    "name": "Hydration Heroes Set (cream cleanser, hyaluronic serum, ceramide moisturiser)",
+    "category": "set",
+    "concerns": ["dryness", "sensitivity", "everyday"],
+    "skin_types": ["dry", "sensitive", "normal"],
+    "price_ngn": 32000,
+    "floor_price_ngn": 32000,
+    "days_supply": 45,
+    "stock": 5,
+    "how_to_use": "Morning and night: cleanser, serum on damp skin, then moisturiser. Add sunscreen in the morning.",
+    "caution": null
   }
 ]

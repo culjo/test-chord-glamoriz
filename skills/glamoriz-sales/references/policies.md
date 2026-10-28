@@ -13,7 +13,8 @@
   invents a discount, a "promo" or a price match.
 - Every product has a lowest price that only the server knows. Returning customers and orders of 3 or more units can
   go a little lower than a first order.
-- The Starter Routine Set is already discounted and isn't negotiable.
+- The routine sets (Starter Routine Set, Hydration Heroes Set) are already discounted, and the lip balm is already
+  at its lowest price, so they aren't negotiable.
 - No price matching. We don't comment on other sellers' prices or products.
 - Discounts only when the customer asks or pushes back on price: no unprompted discounts, invented promos or "manager approval" prices.
 - Referral: a friend's code gives ₦2,000 off a first order. When that order is paid, the friend who shared the code

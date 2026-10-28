@@ -22,5 +22,41 @@
     "credit_ngn": 0,
     "opt_out": false,
     "skin_notes": "Dry, sensitive skin. Pregnant: avoid retinol and salicylic."
+  },
+  {
+    "phone": "2348050000003",
+    "name": "Tunde Bakare",
+    "address_as": "Sir",
+    "city": "Lagos",
+    "area": "Ikeja",
+    "address": "22 Allen Avenue, Ikeja, Lagos",
+    "referral_code": "TUNDE003",
+    "credit_ngn": 2000,
+    "opt_out": false,
+    "skin_notes": "Oily, acne-prone skin. Prefers simple routines. Earned ₦2,000 credit from a friend's referral."
+  },
+  {
+    "phone": "2347060000004",
+    "name": "Chiamaka Eze",
+    "address_as": "Aunty Chi",
+    "city": "Abuja",
+    "area": "Gwarinpa",
+    "address": "15 3rd Avenue, Gwarinpa, Abuja (opposite the filling station)",
+    "referral_code": "CHIAMA004",
+    "credit_ngn": 0,
+    "opt_out": false,
+    "skin_notes": "Dry, sensitive skin. Reacts to fragrance. Bought the Hydration Heroes Set 3 days ago."
+  },
+  {
+    "phone": "2348160000005",
+    "name": "Funmilayo Adeyemi",
+    "address_as": "Ma",
+    "city": "Lagos",
+    "area": "Ikorodu",
+    "address": "8 Ebute Road, Ikorodu, Lagos",
+    "referral_code": "FUNMIL005",
+    "credit_ngn": 0,
+    "opt_out": true,
+    "skin_notes": "Normal skin, uses the body lotion. Asked not to receive follow-up messages."
   }
 ]

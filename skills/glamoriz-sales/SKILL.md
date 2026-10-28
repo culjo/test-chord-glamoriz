@@ -156,8 +156,8 @@ Any of these means the customer wants a better deal, even if they don't name a p
   politely: "No problem at all. The price is here whenever you're ready." Don't ask the tool again unless they
   change the quantity or the product.
 - `lowball: true`: don't be offended and don't lecture. Counter, and explain the value in one line.
-- `negotiable: false`: the item is already at its best price (for example the Starter Set). Say so, explain the
-  value (it costs less than buying the four products one by one), and offer the alternatives.
+- `negotiable: false`: the item is already at its best price (for example a routine set or the lip balm). Say so, explain the
+  value (a set costs less than buying its products one by one), and offer the alternatives.
 - `deal_qty_mismatch` from `quote_cart` or `create_order`: the price was agreed for a different quantity. Explain
   that, and call `negotiate_price` again for the new quantity.
 
