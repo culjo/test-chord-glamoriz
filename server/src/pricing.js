@@ -1,6 +1,7 @@
 // Price negotiation, referral discounts and store credit. All price decisions happen here, never in the model:
 // the agent only passes the customer's offer and quotes back what this returns. Floor prices never leave the server,
 // so a customer can't talk (or prompt-inject) the agent below them.
+import crypto from 'node:crypto';
 import { normalisePhone } from './store.js';
 
 const DEAL_HOURS = 24;
@@ -19,28 +20,49 @@ export class Pricing {
   constructor({ store }) {
     this.store = store;
     this.store.db.deals ??= {};
-  }
-
-  #key(phone, sku) {
-    return `${normalisePhone(phone)}|${sku}`;
+    // Deals used to be keyed by "phone|sku"; give those an id so they're found the same way as new ones.
+    for (const [key, deal] of Object.entries(this.store.db.deals)) {
+      if (deal.id) continue;
+      delete this.store.db.deals[key];
+      const id = newDealId();
+      this.store.db.deals[id] = { ...deal, id, phone: key.split('|')[0] || null };
+    }
   }
 
   paidOrders(phone) {
-    return this.store.ordersFor(phone).filter((o) => o.status === 'paid').length;
+    return phone ? this.store.ordersFor(phone).filter((o) => o.status === 'paid').length : 0;
   }
 
-  /** The live negotiated price for this customer and product, or null. */
-  dealFor(phone, sku) {
-    const deal = this.store.db.deals[this.#key(phone, sku)];
-    if (!deal || Date.parse(deal.expires_at) < Date.now()) return null;
-    return deal;
+  /**
+   * The live agreed price for a product: by one of the given deal ids, or by the customer's phone.
+   * A deal made before we knew the phone works with any phone; one tied to a phone only works for that phone.
+   */
+  dealFor(phone, sku, dealIds = []) {
+    const key = phone ? normalisePhone(phone) : null;
+    const live = (d) => d && d.sku === sku && Date.parse(d.expires_at) >= Date.now() && (!d.phone || !key || d.phone === key);
+    for (const id of dealIds) {
+      const d = this.store.db.deals[String(id).trim()];
+      if (live(d)) return d;
+    }
+    if (!key) return null;
+    return Object.values(this.store.db.deals).find((d) => live(d) && d.phone === key) || null;
   }
 
-  clearDeal(phone, sku) {
-    delete this.store.db.deals[this.#key(phone, sku)];
+  /** Ties phone-less deals used in an order to the customer's number, so nobody else can reuse them. */
+  linkDeals(lines, phone) {
+    for (const line of lines) {
+      const deal = line.deal_id && this.store.db.deals[line.deal_id];
+      if (deal && !deal.phone) deal.phone = normalisePhone(phone);
+    }
   }
 
-  negotiate({ phone, sku, qty = 1, offer_ngn }) {
+  clearDeal(id) {
+    delete this.store.db.deals[id];
+  }
+
+  // TODO(simulator-phone): phone is optional because the Chord WhatsApp simulator doesn't give the agent the
+  // sender's number. See TODO.md: once we know how the channel passes it, revisit whether deal_id is still needed.
+  negotiate({ phone, sku, qty = 1, offer_ngn, deal_id }) {
     const p = this.store.product(sku);
     if (!p) return { ok: false, reason: 'unknown_sku', message: `No product ${sku}.` };
     const floor = p.floor_price_ngn ?? p.price_ngn;
@@ -55,14 +77,16 @@ export class Pricing {
       };
     }
 
-    const returning = this.paidOrders(phone) > 0 || qty >= BULK_UNITS;
+    const key = phone ? normalisePhone(phone) : null;
+    // Without a phone we can't tell a returning customer, so first-time prices apply until we know.
+    const returning = this.paidOrders(key) > 0 || qty >= BULK_UNITS;
     const ladder = returning ? LADDER_RETURNING : LADDER_NEW;
     const steps = ladder.map((share) => Math.max(floor, roundUp100(list - share * gap)));
 
-    const key = this.#key(phone, sku);
-    const prev = this.dealFor(phone, sku);
-    const deal = prev && prev.qty <= qty ? { ...prev } : { sku: p.sku, round: 0, price_ngn: list, qty, accepted: false };
+    const prev = this.dealFor(key, p.sku, deal_id ? [deal_id] : []);
+    const deal = prev && prev.qty <= qty ? { ...prev } : { id: newDealId(), sku: p.sku, round: 0, price_ngn: list, qty, accepted: false };
     deal.qty = Math.max(deal.qty, qty);
+    deal.phone = deal.phone || key; // link a phone-less deal once the number is known
     const expires_at = new Date(Date.now() + DEAL_HOURS * 3600000).toISOString();
 
     // The customer named a price we can take: take it rather than going lower than they asked.
@@ -70,17 +94,18 @@ export class Pricing {
     if (offer_ngn && offer_ngn >= nextStep) {
       const price = Math.min(list, Math.max(floor, roundUp100(offer_ngn)));
       Object.assign(deal, { price_ngn: Math.min(deal.price_ngn, price), accepted: true, expires_at });
-      this.store.db.deals[key] = deal;
+      this.store.db.deals[deal.id] = deal;
       this.store.save();
       return {
         ok: true,
         negotiable: true,
         accepted: true,
+        deal_id: deal.id,
         price_ngn: deal.price_ngn,
         list_price_ngn: list,
         qty: deal.qty,
         valid_until: expires_at,
-        message: `Accept: ₦${deal.price_ngn.toLocaleString('en-NG')} each is agreed. create_order will apply it automatically.`,
+        message: `Accept: ₦${deal.price_ngn.toLocaleString('en-NG')} each is agreed. Pass deal_id to quote_cart and create_order so it's applied.`,
       };
     }
 
@@ -88,7 +113,7 @@ export class Pricing {
     if (deal.round < steps.length) deal.round += 1;
     const counter = steps[deal.round - 1];
     Object.assign(deal, { price_ngn: Math.min(deal.price_ngn, counter), expires_at, accepted: false });
-    this.store.db.deals[key] = deal;
+    this.store.db.deals[deal.id] = deal;
     this.store.save();
 
     const lastOffer = deal.round >= steps.length;
@@ -96,6 +121,7 @@ export class Pricing {
       ok: true,
       negotiable: true,
       accepted: false,
+      deal_id: deal.id,
       counter_price_ngn: deal.price_ngn,
       list_price_ngn: list,
       qty: deal.qty,
@@ -103,10 +129,10 @@ export class Pricing {
       final: lastOffer,
       lowball: Boolean(offer_ngn && offer_ngn < list * LOWBALL_SHARE),
       valid_until: expires_at,
-      ...(lastOffer && { alternatives: this.#alternatives(phone) }),
+      ...(lastOffer && { alternatives: this.#alternatives(key) }),
       message: lastOffer
         ? `This is the best price. Offer ₦${deal.price_ngn.toLocaleString('en-NG')} as final and don't go lower. If they still say no, try the alternatives, then let it go politely.`
-        : `Counter with ₦${deal.price_ngn.toLocaleString('en-NG')} each. Don't hint that a lower price exists. If they accept, call create_order: the price is applied automatically.`,
+        : `Counter with ₦${deal.price_ngn.toLocaleString('en-NG')} each. Don't hint that a lower price exists. Pass deal_id to negotiate_price if they push back again, and to quote_cart and create_order if they accept.`,
     };
   }
 
@@ -134,12 +160,12 @@ export class Pricing {
    * Prices order lines: negotiated unit prices, then referral discount and store credit on the subtotal,
    * never taking the order below the sum of floor prices.
    */
-  priceLines(phone, lines, referralCode) {
+  priceLines(phone, lines, referralCode, dealIds = []) {
     let listSubtotal = 0;
     let floorTotal = 0;
     for (const line of lines) {
       const p = this.store.product(line.sku);
-      const deal = this.dealFor(phone, line.sku);
+      const deal = this.dealFor(phone, line.sku, dealIds);
       if (deal && line.qty < deal.qty) {
         return {
           ok: false,
@@ -150,7 +176,7 @@ export class Pricing {
       }
       line.list_price_ngn = p.price_ngn;
       line.unit_price_ngn = deal?.price_ngn ?? p.price_ngn;
-      if (deal) line.negotiated = true;
+      if (deal) Object.assign(line, { negotiated: true, deal_id: deal.id });
       listSubtotal += p.price_ngn * line.qty;
       floorTotal += (p.floor_price_ngn ?? p.price_ngn) * line.qty;
     }
@@ -188,7 +214,11 @@ export class Pricing {
         rewarded = referrer;
       }
     }
-    for (const line of order.items) if (line.negotiated) this.clearDeal(order.phone, line.sku);
+    for (const line of order.items) if (line.deal_id) this.clearDeal(line.deal_id);
     return rewarded;
   }
+}
+
+function newDealId() {
+  return `DL-${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
 }

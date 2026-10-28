@@ -312,6 +312,32 @@ test('negotiation: a fair offer is taken as-is; returning customers and 3+ units
   assert.equal(fewer.reason, 'deal_qty_mismatch', 'a bulk price cannot be used on one unit');
 });
 
+test('negotiation without a phone number: the deal id carries the price to the order', async () => {
+  const first = await call('negotiate_price', { sku: 'GLM-SER-03' });
+  assert.ok(first.deal_id, 'a phone-less deal gets an id');
+  assert.equal(first.counter_price_ngn, 17300, 'first-time prices until we know who they are');
+  const second = await call('negotiate_price', { sku: 'GLM-SER-03', deal_id: first.deal_id });
+  assert.equal(second.deal_id, first.deal_id, 'pushing back continues the same deal');
+  assert.equal(second.counter_price_ngn, 16700);
+
+  const items = [{ sku: 'GLM-SER-03', qty: 1 }];
+  assert.equal((await call('quote_cart', { items })).items[0].unit_price_ngn, 18000, 'no deal id, no agreed price');
+  assert.equal((await call('quote_cart', { items, deal_ids: [first.deal_id] })).items[0].unit_price_ngn, 16700);
+
+  // The customer gives their number at checkout: the deal links to it and the order uses it.
+  const phone = '08120000014';
+  const { order } = await call('create_order', { phone, items, deal_ids: [first.deal_id], city: 'Abuja', area: 'Wuse', address: '6 Example Close, Wuse 2, Abuja' });
+  assert.equal(order.items[0].unit_price_ngn, 16700);
+  assert.equal((await call('quote_cart', { phone: '08120000015', items, deal_ids: [first.deal_id] })).items[0].unit_price_ngn, 18000,
+    "a deal tied to one customer's number can't be used by another");
+
+  // A returning customer bargaining without a number is upgraded once the number is known.
+  const anon = await call('negotiate_price', { sku: 'GLM-SER-01' });
+  assert.equal(anon.counter_price_ngn, 13900);
+  const ada = await call('negotiate_price', { phone: '08030000001', sku: 'GLM-SER-01', deal_id: anon.deal_id });
+  assert.equal(ada.counter_price_ngn, 13100, 'returning-customer steps apply from the next counter');
+});
+
 test('referral: friend gets ₦2,000 off a first order, referrer gets ₦2,000 credit once it is paid', async () => {
   const own = await call('create_order', { phone: '08030000001', items: [{ sku: 'GLM-CLN-01', qty: 1 }], referral_code: 'ADA2K', city: 'Lagos', area: 'Lekki', address: '12 Admiralty Way, Lekki' });
   assert.equal(own.referral_rejected, 'own_referral_code');

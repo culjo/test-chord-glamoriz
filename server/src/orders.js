@@ -22,10 +22,10 @@ export class Orders {
     this.alertOwner = alertOwner;
   }
 
-  createOrder({ phone, customer_name, items, city, area, address, referral_code, conversation_id }) {
+  createOrder({ phone, customer_name, items, city, area, address, referral_code, deal_ids, conversation_id }) {
     const key = normalisePhone(phone);
     if (key.length < 10) return { ok: false, reason: 'invalid_phone', message: 'That phone number does not look valid.' };
-    const priced = this.#priceCart(key, items, referral_code);
+    const priced = this.#priceCart(key, items, referral_code, deal_ids);
     if (!priced.ok) return priced;
     const lines = priced.lines;
     const subtotal = priced.subtotal_ngn;
@@ -36,6 +36,7 @@ export class Orders {
     }
 
     this.store.upsertCustomer(key, { name: customer_name, city: delivery.city, area, address });
+    this.pricing.linkDeals(lines, key);
     const order = this.store.putOrder({
       id: this.store.newOrderId(),
       phone: key,
@@ -79,7 +80,7 @@ export class Orders {
   }
 
   /** Validates the items and prices them (negotiated prices, referral, credit). Shared by quoteCart and createOrder. */
-  #priceCart(phone, items, referralCode) {
+  #priceCart(phone, items, referralCode, dealIds) {
     if (!items?.length) return { ok: false, reason: 'no_items', message: 'An order needs at least one product.' };
     const totalUnits = items.reduce((n, i) => n + i.qty, 0);
     if (totalUnits > MAX_UNITS_PER_ORDER) {
@@ -95,15 +96,15 @@ export class Orders {
       lines.push({ sku: p.sku, name: p.name, qty });
     }
     // Negotiated prices, referral discount and store credit are all applied server-side.
-    return this.pricing.priceLines(phone, lines, referralCode);
+    return this.pricing.priceLines(phone, lines, referralCode, dealIds);
   }
 
   /**
    * The running total of what the customer has picked, before an order exists. Delivery is added only when the
    * city and area are known, so the agent can show the products total first and the full total later.
    */
-  quoteCart({ phone, items, referral_code, city, area }) {
-    const priced = this.#priceCart(normalisePhone(phone), items, referral_code);
+  quoteCart({ phone, items, referral_code, deal_ids, city, area }) {
+    const priced = this.#priceCart(phone ? normalisePhone(phone) : null, items, referral_code, deal_ids);
     if (!priced.ok) return priced;
     const productsTotal = priced.subtotal_ngn;
     const delivery = city ? quoteDelivery(city, area, productsTotal) : null;

@@ -54,8 +54,11 @@ the conversation and the server decides the price:
   (it never goes lower than the customer asked). Otherwise it counters, moving 30%, 55%, then 80% of the way from the
   list price to the floor for a first-time buyer, or 40%, 70% and 100% for a returning customer or 3+ units.
   Prices round up to the nearest ₦100, and the last step is final.
-- An agreed price is stored per customer and product for 24 hours; `create_order` applies it, so the model can't
-  quote one price and charge another. It only applies to the quantity agreed.
+- An agreed price is stored on the server for 24 hours under a `deal_id`; `quote_cart` and `create_order` apply it,
+  so the model can't quote one price and charge another. It only applies to the quantity agreed.
+- Bargaining doesn't need the customer's phone number (the WhatsApp simulator doesn't show it to the agent). Without
+  one, first-time prices apply and the `deal_id` carries the price to the order, which then ties the deal to the
+  customer's number. A returning customer's better prices apply once the number is known. See [TODO.md](../TODO.md).
 - At the final step the agent gets non-price alternatives: free delivery from ₦50,000, store credit, a referral code
   or buying 3+ units.
 - Referral: a friend's code gives ₦2,000 off a first order. When that order is paid, the code's owner gets ₦2,000
@@ -70,7 +73,8 @@ the conversation and the server decides the price:
 
 ## Open questions for TSG Labs (ask on day one)
 1. Can an MCP tool call find out which thread or conversation it was called from (to get the `conversation_id`
-   for scheduled tasks)? If not, does the agent need to call `schedule_reminder` itself?
+   for scheduled tasks, and the sender's phone number)? If not, does the agent need to call `schedule_reminder`
+   itself? The simulator currently shows the agent only the sender's name.
 2. Does the WhatsApp simulator accept agent-initiated (scheduled) messages, and does it apply WhatsApp's
    24-hour window or template rules?
 3. Which keys and scopes does the exercise account get (for example `teammate:update` for scheduled tasks

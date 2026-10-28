@@ -7,6 +7,7 @@ import { replyFormat } from './formatting.js';
 
 const phone = z.string().describe("Customer's WhatsApp number in any format, e.g. 0803 000 0001 or +2348030000001");
 const orderId = z.string().describe('Glamoriz order number, e.g. GLZ-1001');
+const dealIds = z.array(z.string()).optional().describe('Every deal_id negotiate_price gave you in this chat, so agreed prices are applied');
 const channel = z.string().optional().describe('The channel this chat is on, if you know it: whatsapp, web, instagram or email');
 
 function ok(data) {
@@ -160,9 +161,11 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
     'Call this whenever the customer asks for a discount or a better price, says it is too expensive, gives a budget, ' +
       'mentions a cheaper seller or names their own price ("can you do 12k?"). ' +
       'Pass their offer if they gave one. The server decides: it accepts the offer, makes a counter-offer, or says the price is final. ' +
-      'Quote exactly the price it returns and never offer a price or discount yourself. An agreed price is applied automatically by create_order for 24 hours.',
+      'Quote exactly the price it returns and never offer a price or discount yourself. Keep the deal_id it returns: pass it back on ' +
+      'the next ask, and to quote_cart and create_order, which apply the agreed price for 24 hours.',
     {
-      phone,
+      phone: phone.optional().describe("Customer's WhatsApp number if you have it. Never ask the customer for it just to bargain"),
+      deal_id: z.string().optional().describe('The deal_id from your last negotiate_price call for this product, if any'),
       sku: z.string().describe('Product SKU being bargained on, e.g. GLM-SER-01'),
       qty: z.number().int().min(1).max(10).optional().describe('Units the customer wants (3 or more can unlock a better price)'),
       offer_ngn: z.number().int().positive().optional().describe("The customer's offer per unit in naira, if they named one"),
@@ -179,6 +182,7 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
       phone: phone.optional(),
       items: z.array(z.object({ sku: z.string(), qty: z.number().int().min(1) })).min(1),
       referral_code: z.string().optional(),
+      deal_ids: dealIds,
       city: z.string().optional().describe('Lagos or Abuja, if known'),
       area: z.string().optional().describe('Neighbourhood, if known'),
     },
@@ -197,6 +201,7 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
       area: z.string().describe('Neighbourhood, e.g. Lekki, Yaba, Wuse, Gwarinpa'),
       address: z.string().describe('Full delivery address'),
       referral_code: z.string().optional().describe("A friend's referral code, if a first-time customer gives one"),
+      deal_ids: dealIds,
       conversation_id: z.string().optional().describe('The Chord thread id of this chat, if you know it (used to schedule follow-ups)'),
     },
     async (args) => orders.createOrder(args),
