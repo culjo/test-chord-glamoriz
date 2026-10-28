@@ -1,0 +1,122 @@
+[
+  {
+    "sku": "GLM-CLN-01",
+    "name": "Gentle Glow Foaming Cleanser 150ml",
+    "category": "cleanser",
+    "concerns": ["oiliness", "acne", "everyday"],
+    "skin_types": ["oily", "combination", "normal"],
+    "price_ngn": 8500,
+    "days_supply": 60,
+    "stock": 42,
+    "how_to_use": "Morning and night on damp skin, massage 30 seconds, rinse.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-CLN-02",
+    "name": "Cream Cloud Hydrating Cleanser 150ml",
+    "category": "cleanser",
+    "concerns": ["dryness", "sensitivity", "everyday"],
+    "skin_types": ["dry", "sensitive", "normal"],
+    "price_ngn": 9000,
+    "days_supply": 60,
+    "stock": 18,
+    "how_to_use": "Morning and night, massage onto dry or damp skin, rinse with lukewarm water.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-SER-01",
+    "name": "Even Tone Niacinamide 10% Serum 30ml",
+    "category": "serum",
+    "concerns": ["dark spots", "oiliness", "large pores"],
+    "skin_types": ["oily", "combination", "normal"],
+    "price_ngn": 14500,
+    "days_supply": 30,
+    "stock": 25,
+    "how_to_use": "3–4 drops after cleansing, morning and night, before moisturiser.",
+    "caution": "Patch-test first. Mild tingling for the first few days is normal."
+  },
+  {
+    "sku": "GLM-SER-02",
+    "name": "Clear Path 2% Salicylic Serum 30ml",
+    "category": "serum",
+    "concerns": ["acne", "blackheads"],
+    "skin_types": ["oily", "combination"],
+    "price_ngn": 13000,
+    "days_supply": 30,
+    "stock": 0,
+    "how_to_use": "Every other night after cleansing, then moisturiser. Build up to nightly.",
+    "caution": "Not for pregnancy. Patch-test first. Always use sunscreen during the day."
+  },
+  {
+    "sku": "GLM-SER-03",
+    "name": "Bright Days Vitamin C 15% Serum 30ml",
+    "category": "serum",
+    "concerns": ["dark spots", "dullness"],
+    "skin_types": ["normal", "combination", "dry"],
+    "price_ngn": 18000,
+    "days_supply": 30,
+    "stock": 11,
+    "how_to_use": "3 drops in the morning after cleansing, then sunscreen.",
+    "caution": "Patch-test first. Keep the bottle closed and away from heat."
+  },
+  {
+    "sku": "GLM-SER-04",
+    "name": "Night Renew 0.3% Retinol Serum 30ml",
+    "category": "serum",
+    "concerns": ["dark spots", "fine lines", "acne"],
+    "skin_types": ["normal", "combination", "oily"],
+    "price_ngn": 21000,
+    "days_supply": 45,
+    "stock": 8,
+    "how_to_use": "Night only, 2 nights a week to start, after cleansing. Always use sunscreen the next day.",
+    "caution": "Not for pregnancy or breastfeeding. Patch-test first. Expect some dryness in the first 2 weeks."
+  },
+  {
+    "sku": "GLM-MOI-01",
+    "name": "Barrier Balm Ceramide Moisturiser 50ml",
+    "category": "moisturiser",
+    "concerns": ["dryness", "sensitivity", "everyday"],
+    "skin_types": ["dry", "sensitive", "normal", "combination"],
+    "price_ngn": 12500,
+    "days_supply": 45,
+    "stock": 30,
+    "how_to_use": "Morning and night as the last step before sunscreen.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-MOI-02",
+    "name": "Matte Fresh Gel Moisturiser 50ml",
+    "category": "moisturiser",
+    "concerns": ["oiliness", "acne", "everyday"],
+    "skin_types": ["oily", "combination"],
+    "price_ngn": 11000,
+    "days_supply": 45,
+    "stock": 27,
+    "how_to_use": "Morning and night after serum.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-SPF-01",
+    "name": "Sheer Shield SPF 50 Sunscreen 50ml (no white cast)",
+    "category": "sunscreen",
+    "concerns": ["dark spots", "everyday"],
+    "skin_types": ["oily", "combination", "normal", "dry", "sensitive"],
+    "price_ngn": 15000,
+    "days_supply": 30,
+    "stock": 34,
+    "how_to_use": "Two finger-lengths every morning as the last step. Reapply every 2–3 hours outdoors.",
+    "caution": null
+  },
+  {
+    "sku": "GLM-SET-01",
+    "name": "Starter Routine Set (cleanser, niacinamide serum, gel moisturiser, SPF 50)",
+    "category": "set",
+    "concerns": ["dark spots", "oiliness", "acne", "everyday"],
+    "skin_types": ["oily", "combination", "normal"],
+    "price_ngn": 45000,
+    "days_supply": 30,
+    "stock": 6,
+    "how_to_use": "Morning: cleanser, serum, moisturiser, SPF. Night: cleanser, serum, moisturiser.",
+    "caution": "Patch-test the serum first."
+  }
+]

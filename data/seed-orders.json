@@ -1,0 +1,17 @@
+[
+  {
+    "id": "GLZ-1000",
+    "phone": "2348030000001",
+    "customer_name": "Ada Obi",
+    "items": [{ "sku": "GLM-SER-01", "name": "Even Tone Niacinamide 10% Serum 30ml", "qty": 1, "unit_price_ngn": 14500 }],
+    "subtotal_ngn": 14500,
+    "delivery_fee_ngn": 2500,
+    "total_ngn": 17000,
+    "city": "Lagos",
+    "area": "Lekki",
+    "zone": "Lagos Island",
+    "address": "12 Admiralty Way, Lekki Phase 1, Lagos",
+    "status": "paid",
+    "days_ago": 26
+  }
+]

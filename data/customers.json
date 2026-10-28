@@ -1,0 +1,24 @@
+[
+  {
+    "phone": "2348030000001",
+    "name": "Ada Obi",
+    "city": "Lagos",
+    "area": "Lekki",
+    "address": "12 Admiralty Way, Lekki Phase 1, Lagos",
+    "referral_code": "ADA2K",
+    "discount": null,
+    "opt_out": false,
+    "skin_notes": "Combination skin, working on dark spots. Fine with niacinamide."
+  },
+  {
+    "phone": "2348090000002",
+    "name": "Zainab Musa",
+    "city": "Abuja",
+    "area": "Wuse",
+    "address": "4 Aminu Kano Crescent, Wuse 2, Abuja",
+    "referral_code": "ZAINAB2K",
+    "discount": null,
+    "opt_out": false,
+    "skin_notes": "Dry, sensitive skin. Pregnant: avoid retinol and salicylic."
+  }
+]
