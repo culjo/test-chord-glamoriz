@@ -1,0 +1,155 @@
+### Chord API + Glamoriz tool server: requests for the VS Code "REST Client" extension (humao.rest-client).
+### Keys are read from server/.env via $dotenv, so nothing secret lives in this file. Click "Send Request" above each one.
+###
+### Order of use:
+###   1. Run "List teammates" → copy your teammate's `id` and `workspace_id` into server/.env
+###      as CHORD_TEAMMATE_ID and CHORD_WORKSPACE_ID (and on Render).
+###   2. Run "List MCP servers" → copy the Glamoriz server's `id` into CHORD_MCP_SERVER_ID.
+###   The rest of the requests then use those values.
+
+@chordUrl = https://api.chordhq.xyz
+@apiKey = {{$dotenv CHORD_API_KEY}}
+@workspaceId = {{$dotenv CHORD_WORKSPACE_ID}}
+@teammateId = {{$dotenv CHORD_TEAMMATE_ID}}
+@mcpServerId = {{$dotenv CHORD_MCP_SERVER_ID}}
+@toolsUrl = https://test-chord-glamoriz.onrender.com
+@mcpToken = {{$dotenv MCP_AUTH_TOKEN}}
+
+
+############################################################
+# 1. Find your IDs
+############################################################
+
+### List teammates: each has `id`, `workspace_id`, `lifecycle_state` and `mcp_server_ids`
+GET {{chordUrl}}/v1/teammates
+Authorization: Bearer {{apiKey}}
+
+### Get one teammate (use the id from the list)
+GET {{chordUrl}}/v1/teammates/{{teammateId}}
+Authorization: Bearer {{apiKey}}
+
+### Teammate's tool scope (which tools are On / Off / Needs connecting)
+GET {{chordUrl}}/v1/teammates/{{teammateId}}/tools
+Authorization: Bearer {{apiKey}}
+
+### Teammate's channels (WhatsApp simulator, in-app, ...)
+GET {{chordUrl}}/v1/teammates/{{teammateId}}/channels
+Authorization: Bearer {{apiKey}}
+
+### Teammate's skills: check both are published and `included`
+GET {{chordUrl}}/v1/teammates/{{teammateId}}/skills
+Authorization: Bearer {{apiKey}}
+
+
+############################################################
+# 2. MCP server (the Glamoriz tools)
+############################################################
+
+### List MCP servers in the workspace: copy the Glamoriz `id` (mcp-...) into CHORD_MCP_SERVER_ID
+GET {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers
+Authorization: Bearer {{apiKey}}
+
+### Register the Glamoriz tool server (skip if you already added it in the app)
+POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "name": "Glamoriz tools",
+  "url": "{{toolsUrl}}/mcp",
+  "auth_type": "bearer",
+  "auth_token": "{{mcpToken}}",
+  "transport": "streamable_http",
+  "enabled": true
+}
+
+### Restrict the teammate to the Glamoriz server
+PUT {{chordUrl}}/v1/teammates/{{teammateId}}
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "set_mcp_server_ids": ["{{mcpServerId}}"]
+}
+
+### Health-check the MCP server from Chord's side (wake Render up first with "Tool server health" below)
+POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/health
+Authorization: Bearer {{apiKey}}
+
+### Discover the tools Chord sees on the server (expect 11)
+POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/tools
+Authorization: Bearer {{apiKey}}
+
+
+############################################################
+# 3. Talk to the teammate through the API (no simulator needed)
+############################################################
+
+### Send a message as a test customer. Keep sender_id the same to continue the conversation.
+POST {{chordUrl}}/v1/external-chat/messages
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "workspace_id": "{{workspaceId}}",
+  "teammate_id": "{{teammateId}}",
+  "sender_id": "2348120000099",
+  "text": "Hi, I have dark spots and oily skin. What do you recommend?"
+}
+
+### Returning customer (seeded): Ada Obi
+POST {{chordUrl}}/v1/external-chat/messages
+Authorization: Bearer {{apiKey}}
+Content-Type: application/json
+
+{
+  "workspace_id": "{{workspaceId}}",
+  "teammate_id": "{{teammateId}}",
+  "sender_id": "2348030000001",
+  "text": "Hello, it's me again"
+}
+
+
+############################################################
+# 4. Conversations and follow-ups
+############################################################
+
+### Recent threads (conversations) in the workspace: the `id` is the conversation id for follow-ups
+GET {{chordUrl}}/v1/threads?workspace_id={{workspaceId}}&limit=20
+Authorization: Bearer {{apiKey}}
+
+### Threads waiting for a human (after handover_to_human)
+GET {{chordUrl}}/v1/threads?workspace_id={{workspaceId}}&control_state=human_active
+Authorization: Bearer {{apiKey}}
+
+### Scheduled follow-ups queued by the tool server
+GET {{chordUrl}}/v1/scheduled-tasks?teammate_id={{teammateId}}&limit=20
+Authorization: Bearer {{apiKey}}
+
+### Credit usage so far
+GET {{chordUrl}}/v1/usage
+Authorization: Bearer {{apiKey}}
+
+
+############################################################
+# 5. Glamoriz tool server (direct, bypassing Chord)
+############################################################
+
+### Tool server health (also wakes Render from sleep)
+GET {{toolsUrl}}/health
+
+### List MCP tools
+POST {{toolsUrl}}/mcp
+Authorization: Bearer {{mcpToken}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
+
+### Call a tool: look up the seeded returning customer
+POST {{toolsUrl}}/mcp
+Authorization: Bearer {{mcpToken}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "get_customer", "arguments": {"phone": "0803 000 0001"}}}
