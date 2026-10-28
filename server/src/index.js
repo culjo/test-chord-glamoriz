@@ -10,6 +10,7 @@ import { Store } from './store.js';
 import { Paystack } from './paystack.js';
 import { Chord } from './chord.js';
 import { Orders } from './orders.js';
+import { Pricing } from './pricing.js';
 import { buildMcpServer } from './tools.js';
 
 export function createApp(config = loadConfig()) {
@@ -36,7 +37,8 @@ export function createApp(config = loadConfig()) {
     }
   }
 
-  const orders = new Orders({ store, paystack, chord, config, alertOwner });
+  const pricing = new Pricing({ store });
+  const orders = new Orders({ store, paystack, chord, pricing, config, alertOwner });
   const app = express();
   app.disable('x-powered-by');
 
@@ -107,7 +109,7 @@ export function createApp(config = loadConfig()) {
 
   // Stateless mode: a fresh server and transport per request, so it scales horizontally and survives restarts.
   app.post('/mcp', async (req, res) => {
-    const server = buildMcpServer({ store, orders, alertOwner });
+    const server = buildMcpServer({ store, orders, pricing, alertOwner });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => {
       transport.close();

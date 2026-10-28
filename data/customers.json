@@ -6,7 +6,7 @@
     "area": "Lekki",
     "address": "12 Admiralty Way, Lekki Phase 1, Lagos",
     "referral_code": "ADA2K",
-    "discount": null,
+    "credit_ngn": 0,
     "opt_out": false,
     "skin_notes": "Combination skin, working on dark spots. Fine with niacinamide."
   },
@@ -17,7 +17,7 @@
     "area": "Wuse",
     "address": "4 Aminu Kano Crescent, Wuse 2, Abuja",
     "referral_code": "ZAINAB2K",
-    "discount": null,
+    "credit_ngn": 0,
     "opt_out": false,
     "skin_notes": "Dry, sensitive skin. Pregnant: avoid retinol and salicylic."
   }

@@ -22,7 +22,7 @@ function wrap(name, fn) {
   };
 }
 
-export function buildMcpServer({ store, orders, alertOwner }) {
+export function buildMcpServer({ store, orders, pricing, alertOwner }) {
   const server = new McpServer({ name: 'glamoriz-tools', version: '0.1.0' });
 
   const tool = (name, description, inputSchema, fn) =>
@@ -30,7 +30,7 @@ export function buildMcpServer({ store, orders, alertOwner }) {
 
   tool(
     'get_customer',
-    'Look up a customer by WhatsApp number. Returns their name, last order, referral code and whether they opted out. Unknown numbers return found:false (a new customer).',
+    'Look up a customer by WhatsApp number. Returns their name, last order, referral code, store credit and whether they opted out. Unknown numbers return found:false (a new customer).',
     { phone },
     async ({ phone: p }) => {
       const c = store.customer(p);
@@ -44,7 +44,7 @@ export function buildMcpServer({ store, orders, alertOwner }) {
         area: c?.area || null,
         saved_address: c?.address || null,
         referral_code: c?.referral_code || null,
-        discount: c?.discount || null,
+        credit_ngn: c?.credit_ngn || 0,
         opt_out: Boolean(c?.opt_out),
         notes: c?.skin_notes || null,
         paid_orders: history.length,
@@ -112,8 +112,23 @@ export function buildMcpServer({ store, orders, alertOwner }) {
   );
 
   tool(
+    'negotiate_price',
+    'Call this whenever the customer asks for a discount, a better price or names their own price ("can you do 12k?"). ' +
+      'Pass their offer if they gave one. The server decides: it accepts the offer, makes a counter-offer, or says the price is final. ' +
+      'Quote exactly the price it returns and never offer a price or discount yourself. An agreed price is applied automatically by create_order for 24 hours.',
+    {
+      phone,
+      sku: z.string().describe('Product SKU being bargained on, e.g. GLM-SER-01'),
+      qty: z.number().int().min(1).max(10).optional().describe('Units the customer wants (3 or more can unlock a better price)'),
+      offer_ngn: z.number().int().positive().optional().describe("The customer's offer per unit in naira, if they named one"),
+    },
+    async (args) => pricing.negotiate(args),
+  );
+
+  tool(
     'create_order',
-    'Create an order once the customer has confirmed products, quantity, city, area and full address. The server calculates the delivery fee and total; quote those exact numbers.',
+    'Create an order once the customer has confirmed products, quantity, city, area and full address. The server applies any agreed price, ' +
+      'referral discount and store credit, and calculates the delivery fee and total; quote those exact numbers.',
     {
       phone,
       customer_name: z.string().optional(),
@@ -121,6 +136,7 @@ export function buildMcpServer({ store, orders, alertOwner }) {
       city: z.string().describe('Lagos or Abuja'),
       area: z.string().describe('Neighbourhood, e.g. Lekki, Yaba, Wuse, Gwarinpa'),
       address: z.string().describe('Full delivery address'),
+      referral_code: z.string().optional().describe("A friend's referral code, if a first-time customer gives one"),
       conversation_id: z.string().optional().describe('The Chord thread id of this chat, if you know it (used to schedule follow-ups)'),
     },
     async (args) => orders.createOrder(args),

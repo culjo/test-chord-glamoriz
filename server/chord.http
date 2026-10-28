@@ -76,7 +76,7 @@ Content-Type: application/json
 POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/health
 Authorization: Bearer {{apiKey}}
 
-### Discover the tools Chord sees on the server (expect 11)
+### Discover the tools Chord sees on the server (expect 12)
 POST {{chordUrl}}/v1/workspaces/{{workspaceId}}/mcp-servers/{{mcpServerId}}/tools
 Authorization: Bearer {{apiKey}}
 
@@ -153,3 +153,11 @@ Content-Type: application/json
 Accept: application/json, text/event-stream
 
 {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "get_customer", "arguments": {"phone": "0803 000 0001"}}}
+
+### Bargain as a new customer (call again to see the next counter-offer)
+POST {{toolsUrl}}/mcp
+Authorization: Bearer {{mcpToken}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "negotiate_price", "arguments": {"phone": "08120000099", "sku": "GLM-SER-01", "offer_ngn": 11000}}}

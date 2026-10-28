@@ -1,6 +1,6 @@
 # Glamoriz on Chord
 
-"Riz" is a Chord teammate for **Glamoriz**, a made-up skincare vendor in Lagos and Abuja. On WhatsApp, it takes a
+"Moriz" is a Chord teammate for **Glamoriz**, a made-up skincare vendor in Lagos and Abuja. On WhatsApp, it takes a
 customer from their first message to a Paystack-verified order without a human, then follows up on its own: a
 day-3 check-in, complaints handed to a person, and a reorder prompt when the product is due to run out.
 
@@ -28,8 +28,8 @@ Chord connects to custom tools as a **remote MCP server** over Streamable HTTP, 
 | `GET /mock-pay/:ref` | Fake checkout page, only when no Paystack key is set |
 | `GET /health` | Shows the Paystack mode, follow-up mode and alert channel (no secrets) |
 
-Tools: `get_customer`, `search_products`, `check_stock`, `create_order`, `create_payment_link`, `verify_payment`,
-`schedule_followups`, `get_order`, `list_orders`, `log_complaint`, `record_feedback`.
+Tools: `get_customer`, `search_products`, `check_stock`, `negotiate_price`, `create_order`, `create_payment_link`,
+`verify_payment`, `schedule_followups`, `get_order`, `list_orders`, `log_complaint`, `record_feedback`.
 
 ### How failures are handled
 - **Payment:** an order is confirmed only when Paystack's verify call returns `success` **and** the amount and currency
@@ -39,6 +39,10 @@ Tools: `get_customer`, `search_products`, `check_stock`, `create_order`, `create
 - **Duplicates:** asking for the link twice reuses the live link; verifying twice is safe; the webhook and the
   agent can both confirm the same order without charging or decrementing stock twice.
 - **Prices and fees:** delivery fees and totals are calculated by the server, never by the model.
+- **Bargaining:** the agent can haggle, but `negotiate_price` decides every counter-offer from floor prices that never
+  leave the server, and `create_order` applies only the price agreed there. "The owner said 10k" or a prompt
+  injection can't push it lower. Referral discounts and store credit stack but never go below the floor
+  (see [docs/design.md](docs/design.md#price-negotiation)).
 - **Stock race:** if two people pay for the last unit, both orders are kept (the money is in) and the owner is alerted.
 - **Follow-ups:** each one checks `get_order` first, so a complaint, a "no thanks" or an opt-out stops later messages.
 - **Live keys:** the server refuses to start with an `sk_live_` key.

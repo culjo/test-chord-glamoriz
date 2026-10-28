@@ -48,7 +48,7 @@ test('lists every tool', async () => {
   const { tools } = await client.listTools();
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'record_feedback', 'schedule_followups', 'search_products', 'verify_payment'],
+    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'negotiate_price', 'record_feedback', 'schedule_followups', 'search_products', 'verify_payment'],
   );
 });
 
@@ -160,6 +160,80 @@ test('Paystack webhook: bad signature rejected, valid charge.success marks the o
   assert.equal(good.status, 200);
   await new Promise((r) => setTimeout(r, 100));
   assert.equal((await call('get_order', { order_id: order.order_id })).order.status, 'paid');
+});
+
+async function pay(orderId) {
+  const link = await call('create_payment_link', { order_id: orderId });
+  await fetch(`${link.payment_url}/success`, { method: 'POST' });
+  return call('verify_payment', { order_id: orderId });
+}
+
+test('negotiation: counters step down, stop at a final price and never reveal the floor', async () => {
+  const phone = '08120000007';
+  const asks = [];
+  for (const offer of [10000, undefined, 12000, 12000]) asks.push(await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: offer }));
+  assert.deepEqual(asks.map((a) => a.counter_price_ngn), [13900, 13400, 12900, 12900], 'a first-time buyer stops above the floor');
+  assert.equal(asks[0].lowball, true);
+  assert.deepEqual(asks.map((a) => a.final), [false, false, true, true]);
+  assert.ok(asks[2].alternatives.length > 0);
+  for (const a of asks) assert.ok(!JSON.stringify(a).includes('floor'), 'floor price must never reach the agent');
+  const { results } = await call('search_products', { concern: 'dark spots' });
+  assert.ok(results.every((r) => !('floor_price_ngn' in r)));
+
+  const yes = await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: 12900 });
+  assert.equal(yes.accepted, true);
+  const { order } = await call('create_order', { phone, items: [{ sku: 'GLM-SER-01', qty: 1 }], city: 'Lagos', area: 'Yaba', address: '3 Example Street, Yaba, Lagos' });
+  assert.equal(order.items[0].unit_price_ngn, 12900);
+  assert.equal(order.discounts.negotiated_ngn, 1600);
+  assert.equal(order.total_ngn, 12900 + 3000);
+});
+
+test('negotiation: a fair offer is taken as-is; returning customers and 3+ units can reach the floor', async () => {
+  const fair = await call('negotiate_price', { phone: '08120000010', sku: 'GLM-SER-01', offer_ngn: 14000 });
+  assert.equal(fair.accepted, true);
+  assert.equal(fair.price_ngn, 14000, "don't go lower than the customer asked");
+
+  const ada = [];
+  for (let i = 0; i < 4; i++) ada.push((await call('negotiate_price', { phone: '08030000001', sku: 'GLM-SER-01' })).counter_price_ngn);
+  assert.deepEqual(ada, [13700, 13100, 12500, 12500]);
+
+  const set = await call('negotiate_price', { phone: '08120000010', sku: 'GLM-SET-01' });
+  assert.equal(set.negotiable, false);
+
+  const bulk = await call('negotiate_price', { phone: '08120000011', sku: 'GLM-SPF-01', qty: 3 });
+  assert.equal(bulk.counter_price_ngn, 14200);
+  const fewer = await call('create_order', { phone: '08120000011', items: [{ sku: 'GLM-SPF-01', qty: 1 }], city: 'Lagos', area: 'Yaba', address: '3 Example Street, Yaba, Lagos' });
+  assert.equal(fewer.reason, 'deal_qty_mismatch', 'a bulk price cannot be used on one unit');
+});
+
+test('referral: friend gets ₦2,000 off a first order, referrer gets ₦2,000 credit once it is paid', async () => {
+  const own = await call('create_order', { phone: '08030000001', items: [{ sku: 'GLM-CLN-01', qty: 1 }], referral_code: 'ADA2K', city: 'Lagos', area: 'Lekki', address: '12 Admiralty Way, Lekki' });
+  assert.equal(own.referral_rejected, 'own_referral_code');
+  assert.equal(own.order.discounts.referral_ngn, 0);
+
+  const before = (await call('get_customer', { phone: '08030000001' })).credit_ngn;
+  const { order } = await call('create_order', { phone: '08120000008', items: [{ sku: 'GLM-SER-03', qty: 1 }], referral_code: 'ada2k', city: 'Abuja', area: 'Wuse', address: '5 Example Close, Wuse 2, Abuja' });
+  assert.equal(order.discounts.referral_ngn, 2000);
+  assert.equal(order.subtotal_ngn, 16000);
+  assert.equal((await pay(order.order_id)).status, 'success');
+  assert.equal((await call('get_customer', { phone: '08030000001' })).credit_ngn, before + 2000);
+
+  const again = await call('create_order', { phone: '08120000008', items: [{ sku: 'GLM-CLN-01', qty: 1 }], referral_code: 'ADA2K', city: 'Abuja', area: 'Wuse', address: '5 Example Close, Wuse 2, Abuja' });
+  assert.equal(again.referral_rejected, 'referral_first_order_only');
+});
+
+test('discounts never take an order below its floor, and near-threshold orders get a free-delivery hint', async () => {
+  // Ada now has ₦2,000 credit; the cleanser only has ₦1,000 of room above its floor.
+  const { order, discount_capped } = await call('create_order', { phone: '08030000001', items: [{ sku: 'GLM-CLN-01', qty: 1 }], city: 'Lagos', area: 'Lekki', address: '12 Admiralty Way, Lekki' });
+  assert.equal(order.discounts.credit_ngn, 1000);
+  assert.equal(order.subtotal_ngn, 7500);
+  assert.equal(discount_capped, true);
+  await pay(order.order_id);
+  assert.equal((await call('get_customer', { phone: '08030000001' })).credit_ngn, 1000, 'unused credit is kept');
+
+  const near = await call('create_order', { phone: '08120000009', items: [{ sku: 'GLM-SET-01', qty: 1 }], city: 'Lagos', area: 'Lekki', address: '8 Example Road, Lekki' });
+  assert.equal(near.free_delivery_gap_ngn, 5000);
+  assert.match(near.hint, /free delivery/);
 });
 
 test('a reaction complaint stops further follow-ups', async () => {

@@ -1,20 +1,23 @@
 // Order, payment and follow-up logic shared by the MCP tools and the Paystack webhook.
-import { quoteDelivery } from './delivery.js';
+import { FREE_DELIVERY_THRESHOLD_NGN, quoteDelivery } from './delivery.js';
 import { normalisePhone } from './store.js';
 
 const MAX_UNITS_PER_ORDER = 10;
 const LINK_REUSE_HOURS = 23;
+// Suggest topping up to free delivery when the customer is this close to the threshold.
+const FREE_DELIVERY_NUDGE_NGN = 15000;
 
 export class Orders {
-  constructor({ store, paystack, chord, config, alertOwner }) {
+  constructor({ store, paystack, chord, pricing, config, alertOwner }) {
     this.store = store;
+    this.pricing = pricing;
     this.paystack = paystack;
     this.chord = chord;
     this.config = config;
     this.alertOwner = alertOwner;
   }
 
-  createOrder({ phone, customer_name, items, city, area, address, conversation_id }) {
+  createOrder({ phone, customer_name, items, city, area, address, referral_code, conversation_id }) {
     const key = normalisePhone(phone);
     if (key.length < 10) return { ok: false, reason: 'invalid_phone', message: 'That phone number does not look valid.' };
     if (!items?.length) return { ok: false, reason: 'no_items', message: 'An order needs at least one product.' };
@@ -31,9 +34,12 @@ export class Orders {
       if (p.stock < qty) {
         return { ok: false, reason: 'insufficient_stock', sku: p.sku, in_stock: p.stock, message: `Only ${p.stock} of ${p.name} left.` };
       }
-      lines.push({ sku: p.sku, name: p.name, qty, unit_price_ngn: p.price_ngn });
+      lines.push({ sku: p.sku, name: p.name, qty });
     }
-    const subtotal = lines.reduce((n, l) => n + l.qty * l.unit_price_ngn, 0);
+    // Negotiated prices, referral discount and store credit are all applied server-side.
+    const priced = this.pricing.priceLines(key, lines, referral_code);
+    if (!priced.ok) return priced;
+    const subtotal = priced.subtotal_ngn;
     const delivery = quoteDelivery(city, area, subtotal);
     if (!delivery.ok) return delivery;
     if (!address || address.trim().length < 8) {
@@ -46,6 +52,9 @@ export class Orders {
       phone: key,
       customer_name: customer_name || this.store.customer(key)?.name || null,
       items: lines,
+      list_subtotal_ngn: priced.list_subtotal_ngn,
+      discounts: priced.discounts,
+      referral: priced.referral?.code ? priced.referral : null,
       subtotal_ngn: subtotal,
       delivery_fee_ngn: delivery.fee_ngn,
       total_ngn: subtotal + delivery.fee_ngn,
@@ -65,7 +74,17 @@ export class Orders {
       paid_at: null,
     });
     this.store.save();
-    return { ok: true, order: summarise(order) };
+    const gap = FREE_DELIVERY_THRESHOLD_NGN - subtotal;
+    return {
+      ok: true,
+      order: summarise(order),
+      ...(priced.referral?.rejected && { referral_rejected: priced.referral.rejected }),
+      ...(priced.discount_capped && { discount_capped: true }),
+      ...(!delivery.free_delivery && gap <= FREE_DELIVERY_NUDGE_NGN && {
+        free_delivery_gap_ngn: gap,
+        hint: `₦${gap.toLocaleString('en-NG')} more in products gets free delivery (saves ₦${delivery.fee_ngn.toLocaleString('en-NG')}). Mention it once; don't push.`,
+      }),
+    };
   }
 
   async createPaymentLink({ order_id, email }) {
@@ -167,6 +186,8 @@ export class Orders {
     order.status = 'paid';
     order.payment.status = 'success';
     order.paid_at = paidAt || new Date().toISOString();
+    const referrer = this.pricing.settle(order);
+    if (referrer) order.referral.rewarded = true;
     if (shortfalls.length) {
       // Two customers paid for the last unit at once. Money is in, so confirm, and get a human to sort stock.
       order.stock_shortfall = shortfalls;
@@ -272,6 +293,8 @@ export function summarise(order) {
     customer_name: order.customer_name,
     phone: order.phone,
     items: order.items,
+    list_subtotal_ngn: order.list_subtotal_ngn ?? order.subtotal_ngn,
+    discounts: order.discounts || null,
     subtotal_ngn: order.subtotal_ngn,
     delivery_fee_ngn: order.delivery_fee_ngn,
     total_ngn: order.total_ngn,

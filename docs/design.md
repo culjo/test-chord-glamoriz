@@ -6,7 +6,7 @@
 
 Glamoriz is a skincare vendor in Lagos and Abuja that sells almost entirely through WhatsApp, where customers
 wait hours for a human to reply and many drop off before paying, especially in the evening and at weekends.
-"Riz", a Chord teammate, replies instantly, recommends products from live stock, takes and verifies payment
+"Moriz", a Chord teammate, replies instantly, recommends products from live stock, takes and verifies payment
 through Paystack, then follows up on its own: it checks in three days after delivery, hands complaints to a
 human, and prompts a reorder when the product is due to run out. Every unanswered DM is a lost sale and every
 repeat order costs nothing to acquire, so the business pays for faster first sales and a higher reorder rate.
@@ -34,13 +34,35 @@ sales made outside 9am–6pm, and the 30-day repeat purchase rate.
 | `get_customer(phone)` | Store (JSON or SQLite) | Unknown number → `{found: false}`, never an error |
 | `search_products(concern, skin_type?, max_price?)` | `data/products.json` | No match → empty list plus a suggestion to ask a different question |
 | `check_stock(sku)` | Store | Out of stock → `{in_stock: false, alternatives: [...]}` |
-| `create_order(phone, items, city, area, address)` | Store | Rejects unknown SKU, zero stock or an unknown city; calculates the delivery fee on the server, not the model |
+| `negotiate_price(phone, sku, qty?, offer_ngn?)` | Store, using floor prices that only the server knows | Accepts a fair offer as-is, otherwise counters in up to 3 steps; first-time buyers stop above the floor; a final offer comes with alternatives |
+| `create_order(phone, items, city, area, address, referral_code?)` | Store | Rejects unknown SKU, zero stock or an unknown city; applies the agreed price, referral and credit without going below the floor; calculates the delivery fee on the server, not the model |
 | `create_payment_link(order_id)` | Paystack `POST /transaction/initialize` (test key) | Paystack error or timeout → `{ok: false, reason}`; reuses an existing pending link (idempotent) |
 | `verify_payment(order_id)` | Paystack `GET /transaction/verify/:reference` | Maps to `success`, `pending`, `abandoned` or `failed` and checks that the amount and currency match the order |
 | `schedule_followups(order_id)` | Chord `POST /v1/scheduled-tasks` | Only for paid orders; doesn't schedule twice; demo mode compresses days into minutes |
 | `get_order(order_id)` | Store | Used by follow-ups to stop stale or duplicate messages |
 | `log_complaint(order_id, type, details)` | Store plus an owner alert (webhook or email) | Returns a ticket ID to quote to the customer |
 | `record_feedback(order_id, sentiment, text, opt_out?)` | Store | An opt-out suppresses all future follow-ups |
+
+## Price negotiation
+Nigerian customers expect to bargain ("last price?"). A sales agent that can't bargain sends them to a human, which is
+the delay we're removing; one that bargains on its own judgement can be talked into anything. So the model handles
+the conversation and the server decides the price:
+- Each product has `floor_price_ngn` in the catalogue. No tool ever returns it.
+- `negotiate_price` takes the customer's offer. If it's at or above the next step, the server accepts it as-is
+  (it never goes lower than the customer asked). Otherwise it counters, moving 30%, 55%, then 80% of the way from the
+  list price to the floor for a first-time buyer, or 40%, 70% and 100% for a returning customer or 3+ units.
+  Prices round up to the nearest ₦100, and the last step is final.
+- An agreed price is stored per customer and product for 24 hours; `create_order` applies it, so the model can't
+  quote one price and charge another. It only applies to the quantity agreed.
+- At the final step the agent gets non-price alternatives: free delivery from ₦50,000, store credit, a referral code
+  or buying 3+ units.
+- Referral: a friend's code gives ₦2,000 off a first order. When that order is paid, the code's owner gets ₦2,000
+  store credit, used automatically on their next order. That closes the loop the day-3 check-in starts.
+- Stacking rule: negotiated price, referral and credit can combine, but never take an order below the sum of its
+  floor prices. Unused credit is kept.
+- `create_order` also returns a free-delivery hint when the customer is within ₦15,000 of the threshold, as a way
+  to grow the basket instead of cutting the price.
+- Every order records `list_subtotal_ngn` and a `discounts` breakdown, so the owner can see what bargaining costs.
 
 ## Open questions for TSG Labs (ask on day one)
 1. Can an MCP tool call find out which thread or conversation it was called from (to get the `conversation_id`

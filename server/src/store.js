@@ -73,7 +73,7 @@ export class Store {
     const existing = this.db.customers[key] || {
       phone: key,
       referral_code: null,
-      discount: null,
+      credit_ngn: 0,
       opt_out: false,
       created_at: new Date().toISOString(),
     };
