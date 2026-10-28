@@ -28,7 +28,7 @@ Chord connects to custom tools as a **remote MCP server** over Streamable HTTP, 
 | `GET /mock-pay/:ref` | Fake checkout page, only when no Paystack key is set |
 | `GET /health` | Shows the Paystack mode, follow-up mode and alert channel (no secrets) |
 
-Tools: `get_customer`, `save_customer_details`, `search_products`, `check_stock`, `negotiate_price`, `create_order`, `create_payment_link`,
+Tools: `get_customer`, `save_customer_details`, `search_products`, `check_stock`, `negotiate_price`, `quote_cart`, `create_order`, `create_payment_link`,
 `verify_payment`, `schedule_followups`, `get_order`, `list_orders`, `log_complaint`, `record_feedback`.
 
 ### How failures are handled
@@ -39,6 +39,8 @@ Tools: `get_customer`, `save_customer_details`, `search_products`, `check_stock`
 - **Duplicates:** asking for the link twice reuses the live link; verifying twice is safe; the webhook and the
   agent can both confirm the same order without charging or decrementing stock twice.
 - **Prices and fees:** delivery fees and totals are calculated by the server, never by the model.
+- **VAT:** prices and delivery fees include 7.5% VAT (`VAT_RATE`). `quote_cart` and `create_order` show the VAT
+  portion, worked out after discounts and rounded to the kobo; the total and the Paystack amount don't change.
 - **Reply formatting:** the WhatsApp simulator shows Markdown symbols as they are, so the agent writes plain text by
   default. `get_customer` and `get_order` return a `reply_format` (`plain`, `whatsapp`, `markdown` or `html`) with
   rules the skills follow; change it with `REPLY_FORMAT` or per channel with `REPLY_FORMAT_BY_CHANNEL`, no skill

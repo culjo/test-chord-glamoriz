@@ -157,7 +157,8 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
 
   tool(
     'negotiate_price',
-    'Call this whenever the customer asks for a discount, a better price or names their own price ("can you do 12k?"). ' +
+    'Call this whenever the customer asks for a discount or a better price, says it is too expensive, gives a budget, ' +
+      'mentions a cheaper seller or names their own price ("can you do 12k?"). ' +
       'Pass their offer if they gave one. The server decides: it accepts the offer, makes a counter-offer, or says the price is final. ' +
       'Quote exactly the price it returns and never offer a price or discount yourself. An agreed price is applied automatically by create_order for 24 hours.',
     {
@@ -167,6 +168,21 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
       offer_ngn: z.number().int().positive().optional().describe("The customer's offer per unit in naira, if they named one"),
     },
     async (args) => pricing.negotiate(args),
+  );
+
+  tool(
+    'quote_cart',
+    'Work out the running total of the products the customer has picked, before you have their address. Applies any agreed ' +
+      'price, referral code and store credit. Pass city and area if you know them to include delivery. Quote its numbers exactly; ' +
+      'never add up prices yourself. Call it again whenever the selection changes.',
+    {
+      phone: phone.optional(),
+      items: z.array(z.object({ sku: z.string(), qty: z.number().int().min(1) })).min(1),
+      referral_code: z.string().optional(),
+      city: z.string().optional().describe('Lagos or Abuja, if known'),
+      area: z.string().optional().describe('Neighbourhood, if known'),
+    },
+    async (args) => orders.quoteCart(args),
   );
 
   tool(

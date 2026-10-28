@@ -48,7 +48,7 @@ test('lists every tool', async () => {
   const { tools } = await client.listTools();
   assert.deepEqual(
     tools.map((t) => t.name).sort(),
-    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'negotiate_price', 'record_feedback', 'save_customer_details', 'schedule_followups', 'search_products', 'verify_payment'],
+    ['check_stock', 'create_order', 'create_payment_link', 'get_customer', 'get_order', 'list_orders', 'log_complaint', 'negotiate_price', 'quote_cart', 'record_feedback', 'save_customer_details', 'schedule_followups', 'search_products', 'verify_payment'],
   );
 });
 
@@ -198,6 +198,43 @@ test('addressing: a new customer says how to be addressed, and it sticks', async
   assert.equal((await call('save_customer_details', { phone, address_as: 'Aunty Chi' })).address_as, 'Aunty Chi');
   assert.equal((await call('get_customer', { phone })).name, 'Chioma Okeke', 'a correction keeps the name');
   assert.equal((await call('get_order', { order_id: 'GLZ-1000' })).address_as, 'Ada');
+});
+
+test('cart quote: products total before delivery, full total once the area is known', async () => {
+  const items = [{ sku: 'GLM-SER-01', qty: 2 }, { sku: 'GLM-SPF-01', qty: 1 }];
+  const q = await call('quote_cart', { items });
+  assert.deepEqual(q.items.map((i) => i.line_total_ngn), [29000, 15000]);
+  assert.equal(q.products_total_ngn, 44000);
+  assert.equal(q.total_ngn, null, 'no delivery fee until the area is known');
+  assert.equal(q.free_delivery_gap_ngn, 6000);
+  assert.equal(q.vat_rate_pct, 7.5);
+  assert.equal(q.vat_included_ngn, 3069.77, 'VAT is inside the price, not added on top');
+
+  const withArea = await call('quote_cart', { items, city: 'Lagos', area: 'Yaba' });
+  assert.equal(withArea.delivery_fee_ngn, 3000);
+  assert.equal(withArea.total_ngn, 47000);
+  assert.equal(withArea.vat_included_ngn, 3279.07, 'VAT covers delivery too');
+
+  // An agreed price shows up in the quote, and matches what create_order then charges.
+  const phone = '08120000013';
+  await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: 14000 });
+  const deal = await call('quote_cart', { phone, items: [{ sku: 'GLM-SER-01', qty: 1 }], city: 'Lagos', area: 'Yaba' });
+  assert.equal(deal.items[0].unit_price_ngn, 14000);
+  assert.equal(deal.items[0].agreed_price, true);
+  const { order } = await call('create_order', { phone, items: [{ sku: 'GLM-SER-01', qty: 1 }], city: 'Lagos', area: 'Yaba', address: '3 Example Street, Yaba, Lagos' });
+  assert.equal(order.total_ngn, deal.total_ngn);
+  assert.equal(order.vat_included_ngn, deal.vat_included_ngn);
+
+  assert.equal((await call('quote_cart', { items: [{ sku: 'GLM-SER-02', qty: 1 }] })).reason, 'insufficient_stock');
+});
+
+test('VAT: inclusive maths and config validation', async () => {
+  const { vatIncluded } = await import('../src/orders.js');
+  assert.equal(vatIncluded(10750, 7.5), 750);
+  assert.equal(vatIncluded(14500, 7.5), 1011.63);
+  assert.equal(vatIncluded(14500, 0), 0);
+  assert.equal(loadConfig({ VAT_RATE: '10' }).vatRatePct, 10);
+  assert.throws(() => loadConfig({ VAT_RATE: 'abc' }), /VAT_RATE must be a percentage/);
 });
 
 async function pay(orderId) {

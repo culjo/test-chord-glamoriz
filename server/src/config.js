@@ -13,6 +13,14 @@ function intFrom(env, name, fallback) {
   return n;
 }
 
+function percentFrom(env, name, fallback) {
+  const raw = env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n >= 100) throw new Error(`${name} must be a percentage from 0 to 99.99, got "${raw}"`);
+  return n;
+}
+
 export function loadConfig(env = process.env) {
   const int = (name, fallback) => intFrom(env, name, fallback);
   const paystackKey = env.PAYSTACK_SECRET_KEY || '';
@@ -55,6 +63,9 @@ export function loadConfig(env = process.env) {
       // Set for the demo recording to compress days into minutes (e.g. 2 → check-in at +2 min, reorder at +4 min).
       demoMinutes: int('DEMO_FOLLOWUP_MINUTES', 0),
     },
+
+    // Nigerian VAT, already included in every listed price and delivery fee. Shown on quotes and orders, never added on top.
+    vatRatePct: percentFrom(env, 'VAT_RATE', 7.5),
 
     // How the agent formats replies: plain, whatsapp, markdown or html. Plain suits the WhatsApp simulator.
     replyFormat: {

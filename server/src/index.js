@@ -48,6 +48,7 @@ export function createApp(config = loadConfig()) {
       paystack_mode: paystack.mode,
       chord_followups: chord.configured ? `enabled (${config.chord.followupPlatform})` : 'disabled: agent uses schedule_reminder',
       demo_followup_minutes: config.followups.demoMinutes || null,
+      vat_rate_pct: config.vatRatePct,
       reply_format: { default: config.replyFormat.default, by_channel: config.replyFormat.byChannel },
       owner_alerts: config.ownerAlertWebhookUrl ? 'webhook' : 'log only',
     });

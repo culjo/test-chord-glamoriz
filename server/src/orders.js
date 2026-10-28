@@ -7,6 +7,11 @@ const LINK_REUSE_HOURS = 23;
 // Suggest topping up to free delivery when the customer is this close to the threshold.
 const FREE_DELIVERY_NUDGE_NGN = 15000;
 
+/** The VAT inside a VAT-inclusive amount, to the kobo: ₦10,750 at 7.5% includes ₦750. */
+export function vatIncluded(amountNgn, ratePct) {
+  return Math.round((amountNgn * ratePct * 100) / (100 + ratePct)) / 100;
+}
+
 export class Orders {
   constructor({ store, paystack, chord, pricing, config, alertOwner }) {
     this.store = store;
@@ -20,25 +25,9 @@ export class Orders {
   createOrder({ phone, customer_name, items, city, area, address, referral_code, conversation_id }) {
     const key = normalisePhone(phone);
     if (key.length < 10) return { ok: false, reason: 'invalid_phone', message: 'That phone number does not look valid.' };
-    if (!items?.length) return { ok: false, reason: 'no_items', message: 'An order needs at least one product.' };
-
-    const totalUnits = items.reduce((n, i) => n + i.qty, 0);
-    if (totalUnits > MAX_UNITS_PER_ORDER) {
-      return { ok: false, reason: 'bulk_order', message: `Orders over ${MAX_UNITS_PER_ORDER} units are handled by the team. Hand over to a human.` };
-    }
-
-    const lines = [];
-    for (const { sku, qty } of items) {
-      const p = this.store.product(sku);
-      if (!p) return { ok: false, reason: 'unknown_sku', message: `No product with SKU ${sku}. Use search_products to find the right one.` };
-      if (p.stock < qty) {
-        return { ok: false, reason: 'insufficient_stock', sku: p.sku, in_stock: p.stock, message: `Only ${p.stock} of ${p.name} left.` };
-      }
-      lines.push({ sku: p.sku, name: p.name, qty });
-    }
-    // Negotiated prices, referral discount and store credit are all applied server-side.
-    const priced = this.pricing.priceLines(key, lines, referral_code);
+    const priced = this.#priceCart(key, items, referral_code);
     if (!priced.ok) return priced;
+    const lines = priced.lines;
     const subtotal = priced.subtotal_ngn;
     const delivery = quoteDelivery(city, area, subtotal);
     if (!delivery.ok) return delivery;
@@ -58,6 +47,8 @@ export class Orders {
       subtotal_ngn: subtotal,
       delivery_fee_ngn: delivery.fee_ngn,
       total_ngn: subtotal + delivery.fee_ngn,
+      vat_rate_pct: this.config.vatRatePct,
+      vat_included_ngn: vatIncluded(subtotal + delivery.fee_ngn, this.config.vatRatePct),
       city: delivery.city,
       area,
       zone: delivery.zone,
@@ -84,6 +75,62 @@ export class Orders {
         free_delivery_gap_ngn: gap,
         hint: `₦${gap.toLocaleString('en-NG')} more in products gets free delivery (saves ₦${delivery.fee_ngn.toLocaleString('en-NG')}). Mention it once; don't push.`,
       }),
+    };
+  }
+
+  /** Validates the items and prices them (negotiated prices, referral, credit). Shared by quoteCart and createOrder. */
+  #priceCart(phone, items, referralCode) {
+    if (!items?.length) return { ok: false, reason: 'no_items', message: 'An order needs at least one product.' };
+    const totalUnits = items.reduce((n, i) => n + i.qty, 0);
+    if (totalUnits > MAX_UNITS_PER_ORDER) {
+      return { ok: false, reason: 'bulk_order', message: `Orders over ${MAX_UNITS_PER_ORDER} units are handled by the team. Hand over to a human.` };
+    }
+    const lines = [];
+    for (const { sku, qty } of items) {
+      const p = this.store.product(sku);
+      if (!p) return { ok: false, reason: 'unknown_sku', message: `No product with SKU ${sku}. Use search_products to find the right one.` };
+      if (p.stock < qty) {
+        return { ok: false, reason: 'insufficient_stock', sku: p.sku, in_stock: p.stock, message: `Only ${p.stock} of ${p.name} left.` };
+      }
+      lines.push({ sku: p.sku, name: p.name, qty });
+    }
+    // Negotiated prices, referral discount and store credit are all applied server-side.
+    return this.pricing.priceLines(phone, lines, referralCode);
+  }
+
+  /**
+   * The running total of what the customer has picked, before an order exists. Delivery is added only when the
+   * city and area are known, so the agent can show the products total first and the full total later.
+   */
+  quoteCart({ phone, items, referral_code, city, area }) {
+    const priced = this.#priceCart(normalisePhone(phone), items, referral_code);
+    if (!priced.ok) return priced;
+    const productsTotal = priced.subtotal_ngn;
+    const delivery = city ? quoteDelivery(city, area, productsTotal) : null;
+    if (delivery && !delivery.ok) return delivery;
+    const gap = FREE_DELIVERY_THRESHOLD_NGN - productsTotal;
+    return {
+      ok: true,
+      items: priced.lines.map((l) => ({
+        name: l.name,
+        qty: l.qty,
+        unit_price_ngn: l.unit_price_ngn,
+        line_total_ngn: l.unit_price_ngn * l.qty,
+        ...(l.negotiated && { agreed_price: true }),
+      })),
+      discounts: priced.discounts,
+      ...(priced.referral?.rejected && { referral_rejected: priced.referral.rejected }),
+      products_total_ngn: productsTotal,
+      delivery_fee_ngn: delivery ? delivery.fee_ngn : null,
+      total_ngn: delivery ? productsTotal + delivery.fee_ngn : null,
+      vat_rate_pct: this.config.vatRatePct,
+      // VAT inside the largest total shown: the full total once delivery is known, otherwise the products total.
+      vat_included_ngn: vatIncluded(delivery ? productsTotal + delivery.fee_ngn : productsTotal, this.config.vatRatePct),
+      ...(delivery?.zone_uncertain && { zone_uncertain: true }),
+      ...(gap > 0 && gap <= FREE_DELIVERY_NUDGE_NGN && { free_delivery_gap_ngn: gap }),
+      message: delivery
+        ? 'Show each item with its line total, the delivery fee, the total and the VAT it includes.'
+        : `Show each item with its line total, the products total and the VAT it includes, and say delivery is added once you know their area (free from ₦${FREE_DELIVERY_THRESHOLD_NGN.toLocaleString('en-NG')}).`,
     };
   }
 
@@ -298,6 +345,8 @@ export function summarise(order) {
     subtotal_ngn: order.subtotal_ngn,
     delivery_fee_ngn: order.delivery_fee_ngn,
     total_ngn: order.total_ngn,
+    vat_rate_pct: order.vat_rate_pct ?? null,
+    vat_included_ngn: order.vat_included_ngn ?? null,
     city: order.city,
     area: order.area,
     zone: order.zone,

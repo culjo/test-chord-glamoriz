@@ -36,6 +36,7 @@ sales made outside 9am–6pm, and the 30-day repeat purchase rate.
 | `search_products(concern, skin_type?, max_price?)` | `data/products.json` | No match → empty list plus a suggestion to ask a different question |
 | `check_stock(sku)` | Store | Out of stock → `{in_stock: false, alternatives: [...]}` |
 | `negotiate_price(phone, sku, qty?, offer_ngn?)` | Store, using floor prices that only the server knows | Accepts a fair offer as-is, otherwise counters in up to 3 steps; first-time buyers stop above the floor; a final offer comes with alternatives |
+| `quote_cart(items, phone?, referral_code?, city?, area?)` | Store | Running total once the customer has picked products, before the address; adds delivery when the area is known; same pricing code as `create_order`, so the quote matches the charge |
 | `create_order(phone, items, city, area, address, referral_code?)` | Store | Rejects unknown SKU, zero stock or an unknown city; applies the agreed price, referral and credit without going below the floor; calculates the delivery fee on the server, not the model |
 | `create_payment_link(order_id)` | Paystack `POST /transaction/initialize` (test key) | Paystack error or timeout → `{ok: false, reason}`; reuses an existing pending link (idempotent) |
 | `verify_payment(order_id)` | Paystack `GET /transaction/verify/:reference` | Maps to `success`, `pending`, `abandoned` or `failed` and checks that the amount and currency match the order |
@@ -63,6 +64,8 @@ the conversation and the server decides the price:
   floor prices. Unused credit is kept.
 - `create_order` also returns a free-delivery hint when the customer is within ₦15,000 of the threshold, as a way
   to grow the basket instead of cutting the price.
+- VAT (7.5%, `VAT_RATE`) is inside every price, as customers expect from an advertised price. Quotes and orders
+  show the VAT portion of what's actually paid (after discounts, including delivery); nothing is added on top.
 - Every order records `list_subtotal_ngn` and a `discounts` breakdown, so the owner can see what bargaining costs.
 
 ## Open questions for TSG Labs (ask on day one)

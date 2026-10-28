@@ -34,7 +34,7 @@ Fires about 5 days before the product's `days_supply` runs out.
 - Mention the product by name and ask if they'd like the same again. If `get_customer` shows `credit_ngn`, say it
   comes off this order.
 - Call `check_stock`. If it's out, offer the closest alternative from `search_products` instead.
-- On a yes, follow the sales skill from step 4 (confirm address, take payment, verify).
+- On a yes, follow the sales skill from step 4 (show the total, confirm the address, take payment, verify).
 - On a no or "not now", accept it gracefully, record it with `record_feedback`, and don't follow up again for that order.
 
 ## Rules
