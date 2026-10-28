@@ -281,8 +281,8 @@ function followupPrompt(order, type) {
       : 'Send the reorder nudge: the product is about to run out.';
   return (
     `Glamoriz aftercare follow-up "${type}" for order ${order.id}, ${who}, who bought ${what}. ` +
-    `Follow the glamoriz-aftercare skill. First call get_order for ${order.id}; if followup_allowed is false, send nothing ` +
-    `and reply with the reason. Otherwise: ${task} Send one short WhatsApp message only.`
+    `Follow the glamoriz-aftercare skill. First call get_order for ${order.id}; if followup_allowed is false, send the customer ` +
+    `nothing at all (no explanation). Otherwise: ${task} Send one short WhatsApp message only, with no reasoning or tool details.`
   );
 }
 

@@ -41,12 +41,14 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
   tool(
     'get_customer',
     'Look up a customer by WhatsApp number. Returns their name, last order, referral code, store credit and whether they opted out. ' +
-      'Unknown numbers return found:false (a new customer). Also returns reply_format: format every message you send by its rules.',
-    { phone, channel },
+      'Unknown numbers return found:false (a new customer). Call it at the start of every chat, even without a number, ' +
+      'to get reply_format: format every message you send by its rules.',
+    { phone: phone.optional(), channel },
     async ({ phone: p, channel: ch }) => {
+      const reply_format = replyFormat(config, ch);
+      if (!p) return { found: false, phone_known: false, reply_format };
       const c = store.customer(p);
       const history = store.ordersFor(p).filter((o) => o.status === 'paid');
-      const reply_format = replyFormat(config, ch);
       if (!c && !history.length) return { found: false, reply_format };
       const last = history[0];
       return {
@@ -86,19 +88,40 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
 
   tool(
     'search_products',
-    'Find products for a skin concern (e.g. "dark spots", "acne", "dryness", "oiliness", "sensitivity"). In-stock items come first. Always mention the caution field when present.',
+    'Find products for a skin concern (e.g. "dark spots", "acne", "dryness", "oiliness", "sensitivity"). In-stock items come first. ' +
+      'Leave concern out when the customer asks what you sell: you get one in-stock product per category. Always mention the caution field when present.',
     {
-      concern: z.string().describe('Main skin concern in plain words'),
+      concern: z.string().optional().describe('Main skin concern in plain words; leave out to browse the range'),
       skin_type: z.string().optional().describe('oily, dry, combination, normal or sensitive'),
       max_price_ngn: z.number().int().positive().optional(),
       exclude_pregnancy_unsafe: z.boolean().optional().describe('true if the customer is pregnant or breastfeeding'),
     },
     async ({ concern, skin_type, max_price_ngn, exclude_pregnancy_unsafe }) => {
-      const words = concern.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2);
-      const scored = store
+      const view = (p) => ({
+        sku: p.sku,
+        name: p.name,
+        category: p.category,
+        price_ngn: p.price_ngn,
+        in_stock: p.stock > 0,
+        lasts_days: p.days_supply,
+        suits: p.skin_types,
+        how_to_use: p.how_to_use,
+        caution: p.caution,
+      });
+      const allowed = store
         .products()
         .filter((p) => !max_price_ngn || p.price_ngn <= max_price_ngn)
-        .filter((p) => !exclude_pregnancy_unsafe || !/pregnan/i.test(p.caution || ''))
+        .filter((p) => !exclude_pregnancy_unsafe || !/pregnan/i.test(p.caution || ''));
+      if (!concern?.trim()) {
+        // Browsing: the cheapest in-stock product in each category, as a short overview.
+        const byCategory = new Map();
+        for (const p of allowed.filter((x) => x.stock > 0).sort((a, b) => a.price_ngn - b.price_ngn)) {
+          if (!byCategory.has(p.category)) byCategory.set(p.category, p);
+        }
+        return { overview: true, results: [...byCategory.values()].map(view), hint: 'Show these as a short numbered list, then ask about their skin concern.' };
+      }
+      const words = concern.toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 2);
+      const scored = allowed
         .map((p) => {
           const hay = `${p.name} ${p.category} ${p.concerns.join(' ')}`.toLowerCase();
           let score = words.filter((w) => hay.includes(w)).length * 2;
@@ -108,17 +131,7 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
         .filter((x) => x.score > 0)
         .sort((a, b) => (b.p.stock > 0) - (a.p.stock > 0) || b.score - a.score);
       return {
-        results: scored.slice(0, 5).map(({ p }) => ({
-          sku: p.sku,
-          name: p.name,
-          category: p.category,
-          price_ngn: p.price_ngn,
-          in_stock: p.stock > 0,
-          lasts_days: p.days_supply,
-          suits: p.skin_types,
-          how_to_use: p.how_to_use,
-          caution: p.caution,
-        })),
+        results: scored.slice(0, 5).map(({ p }) => view(p)),
         ...(scored.length === 0 && { hint: 'No match. Ask the customer to describe their concern differently, or suggest the Starter Routine Set (GLM-SET-01).' }),
       };
     },

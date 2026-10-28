@@ -60,6 +60,9 @@ test('recognises a returning customer from any phone format', async () => {
   const stranger = await call('get_customer', { phone: '+234 812 345 6789' });
   assert.equal(stranger.found, false);
   assert.equal(stranger.reply_format.format, 'plain', 'plain text by default, for the WhatsApp simulator');
+  const noNumber = await call('get_customer', {});
+  assert.equal(noNumber.phone_known, false, 'a chat without a number still gets the reply format');
+  assert.ok(noNumber.reply_format);
 });
 
 test('search and stock: out-of-stock items come with alternatives', async () => {
@@ -67,6 +70,10 @@ test('search and stock: out-of-stock items come with alternatives', async () => 
   assert.ok(results.length > 0 && results[0].in_stock);
   const pregnant = await call('search_products', { concern: 'acne', exclude_pregnancy_unsafe: true });
   assert.ok(pregnant.results.every((p) => !/pregnan/i.test(p.caution || '')));
+  const browse = await call('search_products', {});
+  assert.equal(browse.overview, true);
+  assert.deepEqual(browse.results.map((p) => p.category).sort(), ['cleanser', 'moisturiser', 'serum', 'set', 'sunscreen']);
+  assert.ok(browse.results.every((p) => p.in_stock));
   const sal = await call('check_stock', { sku: 'GLM-SER-02' });
   assert.equal(sal.in_stock, false);
   assert.ok(sal.alternatives.length > 0);
