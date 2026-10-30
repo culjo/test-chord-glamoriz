@@ -50,9 +50,7 @@ jobs:
         env:
           APP_ENV: ${{ secrets.APP_ENV }}
         run: |
-          mkdir -p "$APP_DIR/deploy"
-          cp docker-compose.yml "$APP_DIR/"
-          cp deploy/Caddyfile "$APP_DIR/deploy/"
+          mkdir -p "$APP_DIR"
           if [ -n "$APP_ENV" ]; then
             (umask 077 && printf '%s\n' "$APP_ENV" > "$APP_DIR/.env")
           fi
@@ -60,6 +58,21 @@ jobs:
             echo "::error::No .env in $APP_DIR. Create it (see docs/deploy-vps.md) or set the APP_ENV secret."
             exit 1
           fi
+          cp docker-compose.yml "$APP_DIR/"
+
+          # The bundled Caddy's config is only needed when it runs (COMPOSE_PROFILES includes "caddy").
+          # With the VPS's own Caddy, nothing here touches /etc/caddy/Caddyfile.
+          profiles=$(sed -n 's/^[[:space:]]*COMPOSE_PROFILES[[:space:]]*=//p' "$APP_DIR/.env" | tail -n 1 | sed 's/#.*//' | tr -d "\"' ")
+          case ",$profiles," in
+            *,caddy,*)
+              mkdir -p "$APP_DIR/deploy"
+              cp deploy/Caddyfile "$APP_DIR/deploy/"
+              echo "Bundled Caddy enabled: copied deploy/Caddyfile"
+              ;;
+            *)
+              echo "Bundled Caddy off: using the VPS's own web server"
+              ;;
+          esac
 
       - name: Restart the stack
         working-directory: ${{ env.APP_DIR }}
