@@ -35,7 +35,7 @@ sales made outside 9am–6pm, and the 30-day repeat purchase rate.
 | `save_customer_details(phone, name?, address_as?)` | Store | Saves how the customer likes to be addressed (Ma, Sir, Aunty Ada, a first name); returned by `get_customer` and `get_order` |
 | `search_products(concern, skin_type?, max_price?)` | `data/products.json` | No match → empty list plus a suggestion to ask a different question |
 | `check_stock(sku)` | Store | Out of stock → `{in_stock: false, alternatives: [...]}` |
-| `negotiate_price(phone, sku, qty?, offer_ngn?)` | Store, using floor prices that only the server knows | Accepts a fair offer as-is, otherwise counters in up to 3 steps; first-time buyers stop above the floor; a final offer comes with alternatives |
+| `negotiate_price(phone, sku, qty?, offer_ngn?)` | Store, using floor prices that only the server knows | Accepts a fair offer as-is, otherwise counters in 3 steps, then smaller steps for each further pushback until the floor; the floor price comes with alternatives |
 | `quote_cart(items, phone?, referral_code?, city?, area?)` | Store | Running total once the customer has picked products, before the address; adds delivery when the area is known; same pricing code as `create_order`, so the quote matches the charge |
 | `create_order(phone, items, city, area, address, referral_code?)` | Store | Rejects unknown SKU, zero stock or an unknown city; applies the agreed price, referral and credit without going below the floor; calculates the delivery fee on the server, not the model |
 | `create_payment_link(order_id)` | Paystack `POST /transaction/initialize` (test key) | Paystack error or timeout → `{ok: false, reason}`; reuses an existing pending link (idempotent) |
@@ -53,13 +53,15 @@ the conversation and the server decides the price:
 - `negotiate_price` takes the customer's offer. If it's at or above the next step, the server accepts it as-is
   (it never goes lower than the customer asked). Otherwise it counters, moving 30%, 55%, then 80% of the way from the
   list price to the floor for a first-time buyer, or 40%, 70% and 100% for a returning customer or 3+ units.
-  Prices round up to the nearest ₦100, and the last step is final.
+  If the customer keeps pushing after that, each further ask gives half of what's left above the floor, and the
+  floor itself once it's within ₦500, so a determined first-time buyer can still reach it, just more slowly.
+  Prices round up to the nearest ₦100, and only the floor price is final.
 - An agreed price is stored on the server for 24 hours under a `deal_id`; `quote_cart` and `create_order` apply it,
   so the model can't quote one price and charge another. It only applies to the quantity agreed.
 - Bargaining doesn't need the customer's phone number (the WhatsApp simulator doesn't show it to the agent). Without
   one, first-time prices apply and the `deal_id` carries the price to the order, which then ties the deal to the
   customer's number. A returning customer's better prices apply once the number is known. See [TODO.md](../TODO.md).
-- At the final step the agent gets non-price alternatives: free delivery from ₦50,000, store credit, a referral code
+- At the floor price (`final: true`) the agent gets non-price alternatives: free delivery from ₦50,000, store credit, a referral code
   or buying 3+ units.
 - Referral: a friend's code gives ₦2,000 off a first order. When that order is paid, the code's owner gets ₦2,000
   store credit, used automatically on their next order. That closes the loop the day-3 check-in starts.

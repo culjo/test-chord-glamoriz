@@ -6,9 +6,12 @@ import { normalisePhone } from './store.js';
 
 const DEAL_HOURS = 24;
 // Share of the gap between list price and floor that each bargaining round gives away.
-// Returning customers (or 3+ units) can reach the floor; a first-time buyer stops short of it.
+// Returning customers (or 3+ units) reach the floor on the third ask; a first-time buyer stops short of it.
 const LADDER_RETURNING = [0.4, 0.7, 1.0];
 const LADDER_NEW = [0.3, 0.55, 0.8];
+// After the ladder, a customer who keeps pushing gets smaller steps: half of what's left above the floor each time,
+// and the floor itself once it's within this amount.
+const LAST_STEP_NGN = 500;
 const BULK_UNITS = 3;
 const LOWBALL_SHARE = 0.75; // an offer under 75% of list is a lowball
 export const REFERRAL_DISCOUNT_NGN = 2000;
@@ -89,9 +92,15 @@ export class Pricing {
     deal.phone = deal.phone || key; // link a phone-less deal once the number is known
     const expires_at = new Date(Date.now() + DEAL_HOURS * 3600000).toISOString();
 
+    // The next counter: down the ladder, then smaller steps towards the floor, then the floor.
+    const nextStep = () => {
+      if (deal.round < steps.length) return Math.min(deal.price_ngn, steps[deal.round]);
+      const left = deal.price_ngn - floor;
+      return left <= LAST_STEP_NGN ? floor : Math.max(floor, roundUp100(deal.price_ngn - left / 2));
+    };
+
     // The customer named a price we can take: take it rather than going lower than they asked.
-    const nextStep = steps[Math.min(deal.round, steps.length - 1)];
-    if (offer_ngn && offer_ngn >= nextStep) {
+    if (offer_ngn && offer_ngn >= nextStep()) {
       const price = Math.min(list, Math.max(floor, roundUp100(offer_ngn)));
       Object.assign(deal, { price_ngn: Math.min(deal.price_ngn, price), accepted: true, expires_at });
       this.store.db.deals[deal.id] = deal;
@@ -109,14 +118,15 @@ export class Pricing {
       };
     }
 
-    // Each ask without an acceptable offer moves one step down the ladder, and stops at the last step.
-    if (deal.round < steps.length) deal.round += 1;
-    const counter = steps[deal.round - 1];
-    Object.assign(deal, { price_ngn: Math.min(deal.price_ngn, counter), expires_at, accepted: false });
+    // Each ask without an acceptable offer moves one step down, and stops at the floor.
+    const counter = nextStep();
+    deal.round += 1;
+    Object.assign(deal, { price_ngn: counter, expires_at, accepted: false });
     this.store.db.deals[deal.id] = deal;
     this.store.save();
 
-    const lastOffer = deal.round >= steps.length;
+    const lastOffer = deal.price_ngn <= floor;
+    const pastLadder = deal.round > steps.length;
     return {
       ok: true,
       negotiable: true,
@@ -132,7 +142,9 @@ export class Pricing {
       ...(lastOffer && { alternatives: this.#alternatives(key) }),
       message: lastOffer
         ? `This is the best price. Offer ₦${deal.price_ngn.toLocaleString('en-NG')} as final and don't go lower. If they still say no, try the alternatives, then let it go politely.`
-        : `Counter with ₦${deal.price_ngn.toLocaleString('en-NG')} each. Don't hint that a lower price exists. Pass deal_id to negotiate_price if they push back again, and to quote_cart and create_order if they accept.`,
+        : pastLadder
+          ? `Counter with ₦${deal.price_ngn.toLocaleString('en-NG')} each, a small extra step, and ask them to commit ("If I do that, shall I place the order?"). Don't hint that a lower price exists. Pass deal_id to negotiate_price if they push back again, and to quote_cart and create_order if they accept.`
+          : `Counter with ₦${deal.price_ngn.toLocaleString('en-NG')} each. Don't hint that a lower price exists. Pass deal_id to negotiate_price if they push back again, and to quote_cart and create_order if they accept.`,
     };
   }
 

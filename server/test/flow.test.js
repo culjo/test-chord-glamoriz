@@ -277,21 +277,41 @@ async function pay(orderId) {
 test('negotiation: counters step down, stop at a final price and never reveal the floor', async () => {
   const phone = '08120000007';
   const asks = [];
-  for (const offer of [10000, undefined, 12000, 12000]) asks.push(await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: offer }));
-  assert.deepEqual(asks.map((a) => a.counter_price_ngn), [13900, 13400, 12900, 12900], 'a first-time buyer stops above the floor');
+  for (const offer of [10000, undefined, 12000]) asks.push(await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: offer }));
+  assert.deepEqual(asks.map((a) => a.counter_price_ngn), [13900, 13400, 12900]);
   assert.equal(asks[0].lowball, true);
-  assert.deepEqual(asks.map((a) => a.final), [false, false, true, true]);
-  assert.ok(asks[2].alternatives.length > 0);
+  assert.deepEqual(asks.map((a) => a.final), [false, false, false], 'still above the floor, so not final');
+  assert.ok(!asks[2].alternatives);
   for (const a of asks) assert.ok(!JSON.stringify(a).includes('floor'), 'floor price must never reach the agent');
   const { results } = await call('search_products', { concern: 'dark spots' });
   assert.ok(results.every((r) => !('floor_price_ngn' in r)));
 
-  const yes = await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: 12900 });
+  const yes = await call('negotiate_price', { phone, sku: 'GLM-SER-01', offer_ngn: 12900, deal_id: asks[0].deal_id });
   assert.equal(yes.accepted, true);
   const { order } = await call('create_order', { phone, items: [{ sku: 'GLM-SER-01', qty: 1 }], city: 'Lagos', area: 'Yaba', address: '3 Example Street, Yaba, Lagos' });
   assert.equal(order.items[0].unit_price_ngn, 12900);
   assert.equal(order.discounts.negotiated_ngn, 1600);
   assert.equal(order.total_ngn, 12900 + 3000);
+});
+
+test('negotiation: a customer who keeps pushing gets smaller steps down to the floor, then no lower', async () => {
+  // GLM-SER-01: list ₦14,500, floor ₦12,500. A first-time buyer's ladder ends at ₦12,900; the next push reaches the floor.
+  const first = await call('negotiate_price', { sku: 'GLM-SER-01' });
+  const asks = [first];
+  for (let i = 0; i < 4; i++) asks.push(await call('negotiate_price', { sku: 'GLM-SER-01', deal_id: first.deal_id }));
+  assert.deepEqual(asks.map((a) => a.counter_price_ngn), [13900, 13400, 12900, 12500, 12500]);
+  assert.deepEqual(asks.map((a) => a.final), [false, false, false, true, true]);
+  assert.match(asks[3].message, /best price/);
+  assert.ok(asks[3].alternatives.length > 0);
+
+  // An offer between the last counter and the floor is taken as-is.
+  const second = await call('negotiate_price', { sku: 'GLM-SER-01' });
+  await call('negotiate_price', { sku: 'GLM-SER-01', deal_id: second.deal_id });
+  const third = await call('negotiate_price', { sku: 'GLM-SER-01', deal_id: second.deal_id, offer_ngn: 12000 });
+  assert.equal(third.counter_price_ngn, 12900);
+  const deal = await call('negotiate_price', { sku: 'GLM-SER-01', deal_id: second.deal_id, offer_ngn: 12700 });
+  assert.equal(deal.accepted, true);
+  assert.equal(deal.price_ngn, 12700);
 });
 
 test('negotiation: a fair offer is taken as-is; returning customers and 3+ units can reach the floor', async () => {

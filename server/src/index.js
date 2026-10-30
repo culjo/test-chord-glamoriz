@@ -137,6 +137,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const { app, config, paystack } = createApp();
   if (!config.mcpAuthToken) console.warn('WARNING: MCP_AUTH_TOKEN is not set, so /mcp is open to anyone. Set it before deploying.');
   app.listen(config.port, () => {
-    console.log(`Glamoriz tools listening on ${config.publicUrl} (Paystack: ${paystack.mode})`);
+    console.log(`[${new Date().toISOString()}] Glamoriz tools listening on ${config.publicUrl} (Paystack: ${paystack.mode})`);
   });
 }
