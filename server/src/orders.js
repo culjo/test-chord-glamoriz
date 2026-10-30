@@ -164,6 +164,8 @@ export class Orders {
       this.store.save();
       return { ok: true, reused: false, payment_url: init.authorization_url, reference: init.reference, amount_ngn: order.total_ngn, mode: this.paystack.mode };
     } catch (err) {
+      // The tool result only carries the message; log the full error (status, cause, stack) for debugging.
+      console.error(`[create_payment_link] Paystack initialize failed for ${order.id} (reference ${reference}, ₦${order.total_ngn}):`, err);
       return {
         ok: false,
         reason: 'paystack_error',

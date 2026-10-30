@@ -14,10 +14,22 @@ function ok(data) {
   return { content: [{ type: 'text', text: JSON.stringify(data) }] };
 }
 
+// Refusals from these tools (bad input, out of stock, Paystack errors) come back as normal results, so log them to make
+// failed checkouts easy to debug. Addresses and emails are left out of the log.
+const LOGGED_FAILURES = new Set(['create_order', 'create_payment_link']);
+
+function logFailure(name, args, result) {
+  const { address, email, ...input } = args ?? {};
+  const { ok: _ok, message, ...details } = result;
+  console.warn(`[tool:${name}] failed: ${message}`, JSON.stringify({ ...details, input }));
+}
+
 function wrap(name, fn) {
   return async (args) => {
     try {
-      return ok(await fn(args));
+      const result = await fn(args);
+      if (result?.ok === false && LOGGED_FAILURES.has(name)) logFailure(name, args, result);
+      return ok(result);
     } catch (err) {
       console.error(`[tool:${name}]`, err);
       return { isError: true, content: [{ type: 'text', text: `Tool ${name} failed unexpectedly: ${err.message}. Try once more; if it fails again, hand over to a human.` }] };

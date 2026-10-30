@@ -6,4 +6,5 @@ The simualtor does not pass in a phone number
 
 
 What to improve 
-We will show bank account details to customers directly
+We will show bank account details to customers directly based on preference set instead of a paystack link 
+Upselling to the customer days after purchase 

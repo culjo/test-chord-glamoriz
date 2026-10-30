@@ -72,9 +72,19 @@ To use Paystack test mode, put your `sk_test_…` key in `.env`, then pay with
 ## Deploy and connect to Chord
 
 1. **Host it** on a public HTTPS URL; Chord blocks private and localhost addresses.
-   - **Your own VPS (recommended):** `docker-compose.yml` runs the server behind your existing Caddy (or a bundled one), which handles HTTPS
-     automatically, and [.github/workflows/deploy.yml](.github/workflows/deploy.yml) tests, builds and deploys
-     on every push to `main` through a self-hosted runner on the VPS. Setup: [docs/deploy-vps.md](docs/deploy-vps.md).
+   - **Your own VPS (recommended):** [docker-compose.yml](docker-compose.yml) runs the server on `127.0.0.1:3013`
+     (change it with `TOOLS_PORT`), and [.github/workflows/deploy.yml](.github/workflows/deploy.yml) tests, builds
+     and deploys it on every push to `main` through a self-hosted GitHub runner on the VPS. One-time setup:
+     - Install Docker, and add a self-hosted runner (Settings → Actions → Runners) with the label `glamoriz-vps`,
+       running as a user in the `docker` group who can write to `/opt/glamoriz`.
+     - Put the app's `.env` in `/opt/glamoriz/.env`, or paste it into an `APP_ENV` Actions secret.
+     - Point your hostname at the VPS and add it to the VPS's Caddy, which handles HTTPS:
+       ```
+       tools.yourdomain.com {
+       	reverse_proxy 127.0.0.1:3013
+       }
+       ```
+     The workflow never runs on pull requests, so code from forks can't reach the runner.
    - **Or a Node host** such as Render or Railway: root directory `server`, start command `npm start`.
    Either way, set the variables from `.env.example`, including a long random `MCP_AUTH_TOKEN`, and keep `DATA_DIR`
    on persistent storage.
