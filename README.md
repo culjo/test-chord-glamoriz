@@ -71,9 +71,13 @@ To use Paystack test mode, put your `sk_test_…` key in `.env`, then pay with
 
 ## Deploy and connect to Chord
 
-1. **Host it** anywhere that gives a public HTTPS URL and runs Node (for example Render or Railway). Chord blocks
-   private and localhost addresses. Root directory: `server`, start command: `npm start`. Set the variables from
-   `.env.example`, including a long random `MCP_AUTH_TOKEN`, and give `DATA_DIR` a persistent disk.
+1. **Host it** on a public HTTPS URL; Chord blocks private and localhost addresses.
+   - **Your own VPS (recommended):** `docker-compose.yml` runs the server behind your existing Caddy (or a bundled one), which handles HTTPS
+     automatically, and [.github/workflows/deploy.yml](.github/workflows/deploy.yml) tests, builds and deploys
+     on every push to `main` through a self-hosted runner on the VPS. Setup: [docs/deploy-vps.md](docs/deploy-vps.md).
+   - **Or a Node host** such as Render or Railway: root directory `server`, start command `npm start`.
+   Either way, set the variables from `.env.example`, including a long random `MCP_AUTH_TOKEN`, and keep `DATA_DIR`
+   on persistent storage.
 2. **Paystack webhook:** in the Paystack dashboard (test mode), set the webhook URL to `https://<host>/paystack/webhook`.
 3. **Register the MCP server** in Chord (Teammate settings → Tools, or the API):
    ```bash

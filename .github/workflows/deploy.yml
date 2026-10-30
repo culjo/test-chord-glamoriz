@@ -1,0 +1,90 @@
+# Deploy on a self-hosted GitHub Actions runner installed on the VPS itself: no SSH keys, no container registry.
+# The runner checks out the code, runs the tests in Docker, builds the image locally, and restarts the stack in the
+# app folder. Runs on every push to main, or by hand from the Actions tab. Setup: docs/deploy-vps.md.
+#
+# The runner needs the label "glamoriz-vps", Docker access (its user is in the docker group) and write access to
+# the app folder.
+#
+# Optional settings (Settings → Secrets and variables → Actions):
+#   APP_ENV      secret:   the whole .env file. If set, each deploy writes it to the app folder; if not, the deploy
+#                          uses the .env already there.
+#   VPS_APP_DIR  variable: the app folder, default /opt/glamoriz.
+#
+# Security: this workflow never runs on pull requests, so code from forks can't run on the VPS. Keep it that way.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, glamoriz-vps]
+    environment: production
+    timeout-minutes: 20
+    env:
+      APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/glamoriz' }}
+      IMAGE: glamoriz-tools:${{ github.sha }}
+      KEEP_IMAGES: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the tests
+        # Runs in the Dockerfile's test stage, so the VPS doesn't need Node installed.
+        run: docker build --target test --progress plain .
+
+      - name: Build the image
+        run: |
+          docker build --target app -t "$IMAGE" .
+          docker tag "$IMAGE" glamoriz-tools:latest
+
+      - name: Update the app folder
+        env:
+          APP_ENV: ${{ secrets.APP_ENV }}
+        run: |
+          mkdir -p "$APP_DIR/deploy"
+          cp docker-compose.yml "$APP_DIR/"
+          cp deploy/Caddyfile "$APP_DIR/deploy/"
+          if [ -n "$APP_ENV" ]; then
+            (umask 077 && printf '%s\n' "$APP_ENV" > "$APP_DIR/.env")
+          fi
+          if [ ! -f "$APP_DIR/.env" ]; then
+            echo "::error::No .env in $APP_DIR. Create it (see docs/deploy-vps.md) or set the APP_ENV secret."
+            exit 1
+          fi
+
+      - name: Restart the stack
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          docker compose up -d --no-build --remove-orphans
+          # Remember which image is live, for rollbacks.
+          echo "$IMAGE" > .deployed-image
+
+      - name: Wait for the health check
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose ps -q tools)")
+            if [ "$status" = "healthy" ]; then echo "Deployed $IMAGE"; exit 0; fi
+            sleep 2
+          done
+          echo "::error::The tool server didn't become healthy."
+          docker compose logs --tail=50 tools
+          exit 1
+
+      - name: Clean up old images
+        if: success()
+        run: |
+          # Keep the newest few commit images for rollbacks; remove older ones and dangling build layers.
+          docker images glamoriz-tools --format '{{.Tag}}' | grep -v '^latest$' | tail -n +$((KEEP_IMAGES + 1)) \
+            | xargs -r -I{} docker rmi "glamoriz-tools:{}" || true
+          docker image prune -f
+          docker builder prune -f --filter until=168h

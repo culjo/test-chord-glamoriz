@@ -3,3 +3,7 @@ node_modules/
 server/.data/
 *.zip
 .DS_Store
+postman
+.postman
+deploy
+docs/deploy-vps.md

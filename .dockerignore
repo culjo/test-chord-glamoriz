@@ -1,0 +1,13 @@
+**/node_modules
+**/.env
+**/.data
+**/.DS_Store
+.git
+.github
+.postman
+postman
+docs
+skills
+server/chord.http
+*.md
+*.zip

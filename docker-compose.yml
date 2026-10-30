@@ -1,0 +1,63 @@
+# Glamoriz tool server for a single VPS, with optional bundled Caddy for HTTPS.
+#
+# HTTPS, two ways (docs/deploy-vps.md):
+#   - The VPS already runs Caddy (or nginx) for other sites: the default. The tool server listens on
+#     127.0.0.1:${TOOLS_PORT} only, and you add a site block to that Caddy (deploy/Caddyfile.host-example).
+#   - A dedicated VPS: set COMPOSE_PROFILES=caddy in .env to also run the bundled Caddy on ports 80 and 443.
+#
+# On the VPS:  the self-hosted GitHub runner builds the image and runs this from the app folder (default
+#              /opt/glamoriz) on every push to main: see .github/workflows/deploy.yml.
+# Locally:     APP_ENV_FILE=server/.env docker compose up --build   (then http://127.0.0.1:3013/health)
+name: glamoriz
+
+services:
+  tools:
+    # Built on the VPS by the deploy workflow and tagged with the commit; `latest` is the most recent deploy.
+    image: ${IMAGE:-glamoriz-tools:latest}
+    build:
+      context: .
+      target: app
+    restart: unless-stopped
+    env_file:
+      - path: ${APP_ENV_FILE:-.env}
+        required: true
+    environment:
+      # Fixed inside the container, whatever the env file says.
+      PORT: "3000"
+      DATA_DIR: /data
+    volumes:
+      - tools-data:/data
+    ports:
+      # Localhost only: the public way in is HTTPS through Caddy. Change TOOLS_PORT if 3013 is taken on the VPS.
+      - "127.0.0.1:${TOOLS_PORT:-3013}:3000"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    # Only runs with COMPOSE_PROFILES=caddy. Leave it off when the VPS already has a web server on 80/443.
+    profiles: [caddy]
+    image: caddy:2.10.0-alpine
+    restart: unless-stopped
+    depends_on:
+      tools:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      # The public hostname, e.g. tools.example.com. Its DNS A record must point at the VPS.
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  tools-data:   # orders, customers and stock (store.json): back this up
+  caddy-data:   # TLS certificates
+  caddy-config:
