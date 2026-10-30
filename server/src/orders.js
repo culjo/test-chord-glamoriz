@@ -3,6 +3,8 @@ import { FREE_DELIVERY_THRESHOLD_NGN, quoteDelivery } from './delivery.js';
 import { normalisePhone } from './store.js';
 
 const MAX_UNITS_PER_ORDER = 10;
+// The agent has invented payment links before; this rides on every link result.
+const SEND_LINK_AS_IS = 'Send payment_url to the customer exactly as given, the whole link unchanged. Never write, shorten or change a payment link yourself.';
 const LINK_REUSE_HOURS = 23;
 // Suggest topping up to free delivery when the customer is this close to the threshold.
 const FREE_DELIVERY_NUDGE_NGN = 15000;
@@ -145,7 +147,8 @@ export class Orders {
     const p = order.payment;
     const ageHours = p ? (Date.now() - Date.parse(p.created_at)) / 3600000 : Infinity;
     if (p && p.status !== 'failed' && ageHours < LINK_REUSE_HOURS) {
-      return { ok: true, reused: true, payment_url: p.authorization_url, reference: p.reference, amount_ngn: order.total_ngn };
+      console.log(`[create_payment_link] ${order.id}: reused ${p.authorization_url}`);
+      return { ok: true, reused: true, payment_url: p.authorization_url, reference: p.reference, amount_ngn: order.total_ngn, message: SEND_LINK_AS_IS };
     }
 
     const attempt = order.payment_attempts.length + 1;
@@ -162,7 +165,8 @@ export class Orders {
       order.payment_attempts.push({ reference: init.reference, created_at: order.payment.created_at });
       order.status = 'pending_payment';
       this.store.save();
-      return { ok: true, reused: false, payment_url: init.authorization_url, reference: init.reference, amount_ngn: order.total_ngn, mode: this.paystack.mode };
+      console.log(`[create_payment_link] ${order.id}: ₦${order.total_ngn} → ${init.authorization_url} (${this.paystack.mode})`);
+      return { ok: true, reused: false, payment_url: init.authorization_url, reference: init.reference, amount_ngn: order.total_ngn, mode: this.paystack.mode, message: SEND_LINK_AS_IS };
     } catch (err) {
       // The tool result only carries the message; log the full error (status, cause, stack) for debugging.
       console.error(`[create_payment_link] Paystack initialize failed for ${order.id} (reference ${reference}, ₦${order.total_ngn}):`, err);

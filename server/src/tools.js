@@ -221,7 +221,8 @@ export function buildMcpServer({ store, orders, pricing, config, alertOwner }) {
 
   tool(
     'create_payment_link',
-    'Create (or re-send) a Paystack payment link for an order. If a valid link already exists it is reused.',
+    'Create (or re-send) a Paystack payment link for an order. If a valid link already exists it is reused. ' +
+      'payment_url is the only link to send: copy it exactly. Call this again to resend a link; never write one yourself.',
     { order_id: orderId, email: z.string().email().optional().describe("Customer's email if they gave one, for the Paystack receipt") },
     async (args) => orders.createPaymentLink(args),
   );
